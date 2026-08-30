@@ -5,22 +5,16 @@ function resolveApiBase() {
 
   if (queryBase) return queryBase.replace(/\/$/, '')
   if (envBase) return envBase.replace(/\/$/, '')
-
-  // Local dev convenience only. A deployed GitHub Pages build must receive
-  // VITE_API_BASE_URL at build time from a GitHub Actions repository variable.
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return 'http://localhost:8000'
   }
-
   return ''
 }
 
 export const API_BASE_URL = resolveApiBase()
 
 function requireApiBase() {
-  if (!API_BASE_URL) {
-    throw new Error('VITE_API_BASE_URL이 설정되지 않았습니다. GitHub Actions 변수에 배포된 FastAPI URL을 등록하세요.')
-  }
+  if (!API_BASE_URL) throw new Error('VITE_API_BASE_URL is not configured.')
 }
 
 export async function getHealth() {
@@ -30,17 +24,21 @@ export async function getHealth() {
   return response.json()
 }
 
-export async function runAnalysis({ source = 'live', market = 'KRW-BTC', historyYears = 8 } = {}) {
+export async function getSkills() {
+  requireApiBase()
+  const response = await fetch(`${API_BASE_URL}/api/v1/skills`)
+  if (!response.ok) throw new Error(`Skill lookup failed (${response.status})`)
+  return response.json()
+}
+
+export async function runAnalysis({ source = 'live', market = 'KRW-BTC', historyYears = 8, question } = {}) {
   requireApiBase()
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ market, history_years: historyYears, source }),
+    body: JSON.stringify({ market, history_years: historyYears, source, question }),
   })
-
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    throw new Error(body.detail || `Analysis failed (${response.status})`)
-  }
+  if (!response.ok) throw new Error(body.detail || `Analysis failed (${response.status})`)
   return body
 }

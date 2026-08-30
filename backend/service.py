@@ -19,15 +19,16 @@ class CacheEntry:
 
 
 class AnalysisService:
-    """Runs the existing orchestrator and caches identical live requests briefly."""
+    """Runs BTC Agent V3 and briefly caches identical live research requests."""
 
     def __init__(self) -> None:
         self.ttl_seconds = int(os.getenv("ANALYSIS_CACHE_TTL_SECONDS", "300"))
-        self._cache: dict[tuple[str, int, str], CacheEntry] = {}
+        self._cache: dict[tuple[str, int, str, str], CacheEntry] = {}
         self._lock = threading.Lock()
 
-    def analyze(self, market: str, history_years: int, source: SourceMode = "live"):
-        key = (market, history_years, source)
+    def analyze(self, market: str, history_years: int, source: SourceMode = "live", question: str = ""):
+        normalized_question = " ".join((question or "").split()).strip().lower()
+        key = (market, history_years, source, normalized_question)
         now = time.monotonic()
 
         if source == "live":
@@ -40,9 +41,9 @@ class AnalysisService:
 
         if source == "demo":
             market_df = make_demo_market_data(days=max(450, history_years * 365))
-            state = orchestrator.run(market_df=market_df)
+            state = orchestrator.run(market_df=market_df, question=question, source=source)
         else:
-            state = orchestrator.run()
+            state = orchestrator.run(question=question, source=source)
 
         if source == "live":
             with self._lock:

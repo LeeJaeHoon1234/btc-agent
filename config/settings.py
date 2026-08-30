@@ -11,7 +11,7 @@ MODEL_METADATA_PATH = MODEL_DIR / "btc_lgbm_metadata.json"
 MARKET = os.getenv("BTC_MARKET", "KRW-BTC")
 HISTORY_YEARS = int(os.getenv("BTC_HISTORY_YEARS", "8"))
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-terra")
 USE_LLM = os.getenv("USE_LLM", "true").lower() in {"1", "true", "yes", "y"}
 
 MAX_CRITIC_ITERATIONS = int(os.getenv("MAX_CRITIC_ITERATIONS", "2"))
@@ -19,3 +19,8 @@ SIMILARITY_TOP_K = int(os.getenv("SIMILARITY_TOP_K", "5"))
 SIMILARITY_EXCLUDE_RECENT_DAYS = int(
     os.getenv("SIMILARITY_EXCLUDE_RECENT_DAYS", "90")
 )
+
+# V3 research layer
+RESEARCH_TIMEOUT_SECONDS = int(os.getenv("RESEARCH_TIMEOUT_SECONDS", "8"))
+
+USE_SPECIALIST_LLM = os.getenv("USE_SPECIALIST_LLM", "true").lower() in {"1", "true", "yes", "y"}

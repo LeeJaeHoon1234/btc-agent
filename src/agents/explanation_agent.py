@@ -39,8 +39,8 @@ def _exit_text(score: float) -> str:
 def _fallback_explanation(state) -> dict:
     decision = state.final_decision
     latest = state.latest
-    entry_score = float(state.entry.get("score", 50))
-    exit_score = float(state.exit.get("score", 0))
+    entry_score = float(state.research_adjustment.get("adjusted_entry_score", state.entry.get("score", 50)))
+    exit_score = float(state.research_adjustment.get("adjusted_exit_score", state.exit.get("score", 0)))
     regime = state.regime.get("regime")
 
     rsi = float(latest.get("rsi14", 50))
@@ -100,6 +100,16 @@ def _fallback_explanation(state) -> dict:
 
     if ma200_slope < 0 and ma200_gap > 0:
         cautions.append("가격은 장기 기준선 위지만 그 기준선 자체는 아직 내려가고 있어 완전한 상승 전환으로 보긴 이릅니다.")
+
+    if state.research:
+        story = state.research.get("market_story")
+        stance = state.research.get("stance")
+        if story and stance == "BULLISH":
+            positives.append(f"자율 리서치: {story}")
+        elif story and stance == "BEARISH":
+            cautions.append(f"자율 리서치: {story}")
+        elif story:
+            cautions.append(f"자율 리서치가 혼재된 신호를 보고 있습니다: {story}")
 
     # 중복/과다 출력을 줄인다.
     positives = positives[:4]

@@ -3,8 +3,8 @@ from src.core.schemas import Decision
 
 
 def _rule_decision(state) -> Decision:
-    entry_score = float(state.entry.get("score", 50))
-    exit_score = float(state.exit.get("score", 0))
+    entry_score = float(state.research_adjustment.get("adjusted_entry_score", state.entry.get("score", 50)))
+    exit_score = float(state.research_adjustment.get("adjusted_exit_score", state.exit.get("score", 0)))
     risk_level = state.risk.get("level", "medium")
 
     reasons = []
@@ -20,14 +20,18 @@ def _rule_decision(state) -> Decision:
         action = "매수"
         confidence = min(0.90, 0.58 + entry_score / 300)
         thesis = "기술/Regime/ML/유사구간의 종합 진입 점수가 우호적"
-        reasons.extend(state.technical.get("reasons", [])[:3])
+        reasons.extend(state.technical.get("reasons", [])[:2])
+        if state.research.get("market_story"):
+            reasons.append(state.research["market_story"])
         invalidation.append("MA200 재이탈 또는 Regime이 bear 방향으로 전환될 경우")
     else:
         action = "관망"
         confidence = 0.62
         thesis = "진입 또는 익절 어느 한쪽으로 충분한 확신이 모이지 않음"
         if state.gate:
-            reasons.extend(state.gate.reasons[:3])
+            reasons.extend(state.gate.reasons[:2])
+        if state.research.get("market_story"):
+            reasons.append(state.research["market_story"])
         invalidation.append("Entry 또는 Exit score가 임계치를 명확히 돌파할 경우")
 
     return Decision(

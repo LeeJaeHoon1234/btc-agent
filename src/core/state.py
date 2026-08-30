@@ -27,6 +27,14 @@ class AgentState:
     final_decision: Decision | None = None
     explanation: dict[str, Any] = field(default_factory=dict)
 
+    # V3 autonomous research layer
+    question: str = ""
+    plan: dict[str, Any] = field(default_factory=dict)
+    experts: dict[str, Any] = field(default_factory=dict)
+    research: dict[str, Any] = field(default_factory=dict)
+    research_adjustment: dict[str, Any] = field(default_factory=dict)
+    evidence: list[dict[str, Any]] = field(default_factory=list)
+
     iteration: int = 0
     logs: list[str] = field(default_factory=list)
 
@@ -45,5 +53,10 @@ class AgentState:
             "entry": self.entry,
             "exit": self.exit,
             "risk": self.risk,
+            "question": self.question,
+            "plan": self.plan,
+            "experts": self.experts,
+            "research": self.research,
+            "research_adjustment": self.research_adjustment,
             "gate": self.gate.to_dict() if self.gate else None,
         }

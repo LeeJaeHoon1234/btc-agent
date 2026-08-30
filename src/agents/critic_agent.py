@@ -7,8 +7,8 @@ def _rule_critique(state, decision: Decision) -> Critique:
     instructions: list[str] = []
     severity_points = 0
 
-    entry_score = float(state.entry.get("score", 50))
-    exit_score = float(state.exit.get("score", 0))
+    entry_score = float(state.research_adjustment.get("adjusted_entry_score", state.entry.get("score", 50)))
+    exit_score = float(state.research_adjustment.get("adjusted_exit_score", state.exit.get("score", 0)))
     regime = state.regime.get("regime")
 
     if decision.action == "매수" and exit_score >= 70:
@@ -28,6 +28,16 @@ def _rule_critique(state, decision: Decision) -> Critique:
 
     if decision.action == "매수" and entry_score < 60:
         issues.append("매수 판단에 비해 Entry score가 충분히 높지 않음")
+        severity_points += 2
+
+    research_score = float(state.research.get("score", 0)) if state.research else 0
+    if decision.action == "매수" and research_score <= -20:
+        issues.append("매수 판단이 cross-domain research와 강하게 충돌")
+        instructions.append("외부 근거 충돌을 해소하거나 매수 비중을 낮출지 검토")
+        severity_points += 3
+
+    if decision.action == "비중축소" and research_score >= 25:
+        issues.append("비중축소 판단이 우호적인 cross-domain research와 충돌")
         severity_points += 2
 
     if not decision.invalidation:
