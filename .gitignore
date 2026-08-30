@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.DS_Store
+frontend/node_modules/
+frontend/dist/
+
+# Keep only the production BTC model artifacts in Git.
+data/models/*
+!data/models/README.md
+!data/models/btc_lgbm.joblib
+!data/models/btc_lgbm_metadata.json

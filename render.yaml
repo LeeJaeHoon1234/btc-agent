@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: leejaehoon1234-btc-agent-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.11
+      - key: USE_LLM
+        value: "false"
+      - key: OPENAI_MODEL
+        value: gpt-5.6
+      - key: ANALYSIS_CACHE_TTL_SECONDS
+        value: "300"
+      - key: CORS_ORIGINS
+        value: "https://LeeJaeHoon1234.github.io,http://localhost:5173,http://127.0.0.1:5173"

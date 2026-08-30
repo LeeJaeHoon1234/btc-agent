@@ -1,0 +1,49 @@
+{
+  "trained_at": "2026-08-30T15:12:39",
+  "trained_until": "2026-07-31 09:00:00",
+  "sample_count": 2671,
+  "features": [
+    "rsi14",
+    "ma20_gap_pct",
+    "ma20_slope_5d",
+    "ma200_gap_pct",
+    "ma200_slope_20d",
+    "volume_ratio",
+    "return_3d_now",
+    "return_7d_now"
+  ],
+  "walk_forward_mean_auc": 0.5459015268826053,
+  "walk_forward_mean_accuracy": 0.4871914606834673,
+  "walk_forward_by_year": {
+    "2021": {
+      "accuracy": 0.5068493150684932,
+      "auc": 0.5101051051051051,
+      "test_count": 365
+    },
+    "2022": {
+      "accuracy": 0.3917808219178082,
+      "auc": 0.5002857142857142,
+      "test_count": 365
+    },
+    "2023": {
+      "accuracy": 0.4931506849315068,
+      "auc": 0.5157312925170069,
+      "test_count": 365
+    },
+    "2024": {
+      "accuracy": 0.6120218579234973,
+      "auc": 0.628082511330312,
+      "test_count": 366
+    },
+    "2025": {
+      "accuracy": 0.4712328767123288,
+      "auc": 0.5412386616207124,
+      "test_count": 365
+    },
+    "2026": {
+      "accuracy": 0.4481132075471698,
+      "auc": 0.5799658764367815,
+      "test_count": 212
+    }
+  }
+}
