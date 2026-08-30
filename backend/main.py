@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -16,8 +16,10 @@ from config.settings import HISTORY_YEARS, MARKET, MODEL_PATH
 from src.agents.llm_client import llm_available
 from src.agents.v3.planner_agent import DEFAULT_QUESTION
 from src.core.v3.skill_registry import skill_registry
+from src.core.v3.usage_guard import usage_guard
 
 logger = logging.getLogger(__name__)
+VERSION = "3.1.0"
 
 
 class AnalysisRequest(BaseModel):
@@ -34,6 +36,7 @@ class HealthResponse(BaseModel):
     llm_available: bool
     default_market: str
     skill_count: int
+    cost_guard_enabled: bool
 
 
 def _cors_origins() -> list[str]:
@@ -44,10 +47,19 @@ def _cors_origins() -> list[str]:
     return [item.strip().rstrip("/") for item in raw.split(",") if item.strip()]
 
 
+def _client_key(request: Request) -> str:
+    # Render forwards the original client address in X-Forwarded-For. Only a hash is retained.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    raw_client = forwarded.split(",", 1)[0].strip() if forwarded else ""
+    if not raw_client and request.client:
+        raw_client = request.client.host
+    return usage_guard.anonymize_client(raw_client)
+
+
 app = FastAPI(
-    title="BTC Agent V3 API",
-    description="Autonomous BTC research and decision-support agent with skill routing, retrieval, external tools, Rule/ML and conditional LLM reasoning.",
-    version="3.0.0",
+    title="BTC Agent V3.1 API",
+    description="Autonomous BTC research agent with skill routing, retrieval, Rule/ML, conditional LLM reasoning, and public-service cost guardrails.",
+    version=VERSION,
 )
 
 app.add_middleware(
@@ -61,18 +73,26 @@ app.add_middleware(
 
 @app.get("/", include_in_schema=False)
 def root() -> dict:
-    return {"service": "BTC Agent V3 API", "version": "3.0.0", "docs": "/docs", "health": "/health", "skills": "/api/v1/skills"}
+    return {
+        "service": "BTC Agent V3.1 API",
+        "version": VERSION,
+        "docs": "/docs",
+        "health": "/health",
+        "skills": "/api/v1/skills",
+        "usage": "/api/v1/usage",
+    }
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
-        version="3.0.0",
+        version=VERSION,
         model_available=MODEL_PATH.exists(),
         llm_available=llm_available(),
         default_market=MARKET,
         skill_count=len(skill_registry.names()),
+        cost_guard_enabled=usage_guard.enabled,
     )
 
 
@@ -81,14 +101,30 @@ def skills() -> dict:
     return {"skills": skill_registry.describe()}
 
 
+@app.get("/api/v1/usage")
+def usage(request: Request) -> dict:
+    return usage_guard.status(_client_key(request))
+
+
 @app.post("/api/v1/analyze")
-def analyze(request: AnalysisRequest) -> dict:
+def analyze(payload: AnalysisRequest, request: Request) -> dict:
+    client_key = _client_key(request)
+    rate = usage_guard.register_request(client_key)
+    if not rate.allowed:
+        headers = {"Retry-After": str(rate.retry_after_seconds or 60)}
+        raise HTTPException(
+            status_code=429,
+            detail="Public analysis rate limit reached. Try again later.",
+            headers=headers,
+        )
+
     try:
-        state, cached = analysis_service.analyze(
-            market=request.market,
-            history_years=request.history_years,
-            source=request.source,
-            question=request.question,
+        state, cached, llm_usage = analysis_service.analyze(
+            market=payload.market,
+            history_years=payload.history_years,
+            source=payload.source,
+            question=payload.question,
+            client_key=client_key,
         )
     except (requests.RequestException, ConnectionError, TimeoutError) as exc:
         raise HTTPException(
@@ -104,11 +140,12 @@ def analyze(request: AnalysisRequest) -> dict:
     return {
         "meta": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "version": "3.0.0",
-            "market": request.market,
-            "history_years": request.history_years,
-            "source": request.source,
+            "version": VERSION,
+            "market": payload.market,
+            "history_years": payload.history_years,
+            "source": payload.source,
             "cached": cached,
+            "llm_usage": llm_usage,
         },
         "analysis": serialize_state(state),
     }

@@ -1,6 +1,7 @@
 import os
 
 os.environ["USE_LLM"] = "false"
+os.environ["COST_GUARD_ENABLED"] = "false"
 
 from fastapi.testclient import TestClient
 
@@ -52,7 +53,7 @@ def test_v3_demo_contract_contains_autonomous_research():
     assert response.status_code == 200, response.text
     body = response.json()
     analysis = body["analysis"]
-    assert body["meta"]["version"] == "3.0.0"
+    assert body["meta"]["version"] == "3.1.0"
     assert analysis["plan"]["selected_skills"]
     assert "derivatives" in analysis["experts"]
     assert "macro" in analysis["experts"]

@@ -1,6 +1,7 @@
 import os
 
 os.environ["USE_LLM"] = "false"
+os.environ["COST_GUARD_ENABLED"] = "false"
 
 from fastapi.testclient import TestClient
 
@@ -16,6 +17,8 @@ def test_health():
     assert body["status"] == "ok"
     assert "model_available" in body
     assert "llm_available" in body
+    assert body["version"] == "3.1.0"
+    assert "cost_guard_enabled" in body
 
 
 def test_demo_analysis_contract():
@@ -27,6 +30,8 @@ def test_demo_analysis_contract():
     body = response.json()
 
     assert body["meta"]["source"] == "demo"
+    assert body["meta"]["version"] == "3.1.0"
+    assert "llm_usage" in body["meta"]
     analysis = body["analysis"]
     assert analysis["final_decision"]["action"] in {"매수", "관망", "비중축소"}
     assert len(analysis["series"]) <= 120
@@ -61,3 +66,12 @@ def test_cors_preflight_for_local_frontend():
     )
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_usage_endpoint():
+    response = client.get("/api/v1/usage")
+    assert response.status_code == 200
+    body = response.json()
+    assert "request" in body
+    assert "llm" in body
+    assert body["scope"] == "process_memory"

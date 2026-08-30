@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { API_BASE_URL, getHealth, getSkills, runAnalysis } from './api.js'
+import { API_BASE_URL, getHealth, getSkills, getUsage, runAnalysis } from './api.js'
 
 const h = React.createElement
 const DEFAULT_Q = '지금 BTC를 추매/보유/익절/비중축소 중 어떻게 대응해야 하고, 가장 중요한 근거는 무엇인가?'
@@ -46,17 +46,18 @@ function ExpertPanel({ name, data }) {
 export default function App() {
   const [health, setHealth] = useState(null)
   const [skills, setSkills] = useState([])
+  const [usage, setUsage] = useState(null)
   const [payload, setPayload] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [source, setSource] = useState('live')
   const [question, setQuestion] = useState(DEFAULT_Q)
 
-  useEffect(() => { getHealth().then(setHealth).catch(() => setHealth(null)); getSkills().then((x) => setSkills(x.skills || [])).catch(() => setSkills([])) }, [])
+  useEffect(() => { getHealth().then(setHealth).catch(() => setHealth(null)); getSkills().then((x) => setSkills(x.skills || [])).catch(() => setSkills([])); getUsage().then(setUsage).catch(() => setUsage(null)) }, [])
 
   async function analyze(nextSource = source) {
     setLoading(true); setError('')
-    try { const result = await runAnalysis({ source: nextSource, question }); setPayload(result); setSource(nextSource) }
+    try { const result = await runAnalysis({ source: nextSource, question }); setPayload(result); setSource(nextSource); getUsage().then(setUsage).catch(() => {}) }
     catch (err) { setError(err.message || String(err)) }
     finally { setLoading(false) }
   }
@@ -65,16 +66,21 @@ export default function App() {
   const regimeLabel = useMemo(() => ({ bull_trend: 'Bull Trend', bull_transition: 'Bull Transition', sideways: 'Sideways', bear_transition: 'Bear Transition', bear_trend: 'Bear Trend' }[a?.regime?.regime] || '—'), [a])
   const adjustedEntry = a?.research_adjustment?.adjusted_entry_score ?? a?.entry?.score
   const adjustedExit = a?.research_adjustment?.adjusted_exit_score ?? a?.exit?.score
+  const llmUsage = payload?.meta?.llm_usage
+  const quota = llmUsage?.quota || usage
+  const llmMode = llmUsage?.mode
 
   return h('div', { className: 'app-shell' },
-    h('header', { className: 'topbar' }, h('div', { className: 'brand' }, h('span', { className: 'btc-mark' }, '₿'), h('span', null, 'BTC Agent V3')), h('div', { className: 'top-status' }, health ? h(Badge, { tone: 'positive' }, `API online · ML ${health.model_available ? 'ready' : 'fallback'} · LLM ${health.llm_available ? 'on' : 'off'} · ${health.skill_count || skills.length} skills`) : h(Badge, { tone: 'negative' }, 'API offline'))),
+    h('header', { className: 'topbar' }, h('div', { className: 'brand' }, h('span', { className: 'btc-mark' }, '₿'), h('span', null, 'BTC Agent V3.1')), h('div', { className: 'top-status' }, health ? h(Badge, { tone: 'positive' }, `API online · ML ${health.model_available ? 'ready' : 'fallback'} · LLM ${health.llm_available ? 'on' : 'off'} · Guard ${health.cost_guard_enabled ? 'on' : 'off'} · ${health.skill_count || skills.length} skills`) : h(Badge, { tone: 'negative' }, 'API offline'))),
     h('main', null,
       h('section', { className: 'hero' },
-        h('div', null, h('p', { className: 'eyebrow' }, 'PLANNER × SKILLS × TOOLS × RAG × RULE/ML × CRITIC'), h('h1', null, '질문을 받고, 필요한 전문가만 스스로 호출한다.'), h('p', { className: 'hero-copy' }, 'V2의 deterministic decision engine 위에 Planner, specialist skills, external research tools, retrieval, evidence tracking을 추가한 autonomous research layer.')),
+        h('div', null, h('p', { className: 'eyebrow' }, 'PLANNER × SKILLS × TOOLS × RAG × RULE/ML × CRITIC'), h('h1', null, '질문을 받고, 필요한 전문가만 스스로 호출한다.'), h('p', { className: 'hero-copy' }, 'Autonomous research layer + public-service cost guard. LLM quota가 끝나도 Rule/ML fallback으로 분석은 계속됩니다.')),
         h('div', { className: 'controls controls-v3' }, h('div', { className: 'segmented' }, h('button', { className: source === 'live' ? 'active' : '', onClick: () => setSource('live') }, 'Live'), h('button', { className: source === 'demo' ? 'active' : '', onClick: () => setSource('demo') }, 'Demo')), h('button', { className: 'primary-btn', disabled: loading, onClick: () => analyze(source) }, loading ? 'Agent Researching…' : 'Run Autonomous Analysis')),
       ),
+      h('section', { className: 'quota-strip panel' }, h('div', null, h('strong', null, 'Public AI quota'), h('span', null, quota ? `IP ${quota.llm.ip_daily_used}/${quota.llm.ip_daily_limit} · Global ${quota.llm.global_daily_used}/${quota.llm.global_daily_limit}` : 'loading…')), h('div', null, h(Badge, { tone: llmMode === 'fallback' ? 'warning' : 'positive' }, llmMode === 'cache' ? 'cached · no new AI cost' : llmMode === 'fallback' ? 'rule/ml fallback' : 'cost guard active')),),
       h('section', { className: 'query-panel panel' }, h('label', { htmlFor: 'agent-question' }, 'Research Question'), h('textarea', { id: 'agent-question', value: question, onChange: (e) => setQuestion(e.target.value), rows: 3, maxLength: 600 }), h('div', { className: 'skill-row' }, ...skills.map((s) => h('span', { className: 'skill-chip', title: s.mission, key: s.name }, s.name)))),
       error ? h('section', { className: 'error-box' }, h('strong', null, '분석 실패'), h('span', null, error), source === 'live' ? h('button', { onClick: () => analyze('demo') }, 'Demo로 검증') : null) : null,
+      llmUsage?.mode === 'fallback' && llmUsage?.reason && llmUsage.reason !== 'llm_not_configured' ? h('section', { className: 'quota-warning' }, h('strong', null, 'AI quota fallback'), h('span', null, `LLM 호출을 중단하고 Rule/ML 모드로 안전하게 계속했습니다. (${llmUsage.reason})`)) : null,
       !a ? h('section', { className: 'welcome panel' }, h('h2', null, 'Ready'), h('p', null, 'Live는 Upbit + 외부 research tools를 사용합니다. Demo는 외부 네트워크 없이 V3 전체 orchestration을 검증합니다.'), h('code', null, API_BASE_URL)) : h(React.Fragment, null,
         h('section', { className: 'decision-strip' }, h('div', null, h('p', { className: 'eyebrow' }, `${payload.meta.market} · V${payload.meta.version} · ${payload.meta.source.toUpperCase()}${payload.meta.cached ? ' · CACHED' : ''}`), h('h2', null, explanation?.headline || decision?.thesis || '분석 완료'), h('p', null, explanation?.summary || decision?.thesis)), h('div', { className: `decision-action decision-${tone}` }, h('span', null, 'FINAL'), h('strong', null, decision?.action || '—'), h('small', null, `confidence ${pct((decision?.confidence || 0) * 100, 0)}`))),
         h('section', { className: 'metrics-grid' },

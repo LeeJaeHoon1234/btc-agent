@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 
 from src.agents.v3.derivatives_agent import run_derivatives_agent
 from src.agents.v3.historical_agent import run_historical_agent
@@ -69,13 +70,17 @@ def run_research(question: str, plan: dict, state, source: str = "live") -> tupl
     jobs = {}
     with ThreadPoolExecutor(max_workers=4) as pool:
         if "derivatives" in selected:
-            jobs[pool.submit(run_derivatives_agent, core, demo.get("derivatives"))] = "derivatives"
+            ctx = copy_context()
+            jobs[pool.submit(ctx.run, run_derivatives_agent, core, demo.get("derivatives"))] = "derivatives"
         if "macro" in selected:
-            jobs[pool.submit(run_macro_agent, core, demo.get("macro"))] = "macro"
+            ctx = copy_context()
+            jobs[pool.submit(ctx.run, run_macro_agent, core, demo.get("macro"))] = "macro"
         if "news" in selected:
-            jobs[pool.submit(run_news_agent, question, core, demo.get("news"))] = "news"
+            ctx = copy_context()
+            jobs[pool.submit(ctx.run, run_news_agent, question, core, demo.get("news"))] = "news"
         if "historical" in selected:
-            jobs[pool.submit(run_historical_agent, state.market_df, core)] = "historical"
+            ctx = copy_context()
+            jobs[pool.submit(ctx.run, run_historical_agent, state.market_df, core)] = "historical"
 
         for future in as_completed(jobs):
             name = jobs[future]

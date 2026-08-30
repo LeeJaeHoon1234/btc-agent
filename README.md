@@ -1,4 +1,4 @@
-# BTC Agent V3 — Autonomous Research & Decision System
+# BTC Agent V3.1 — Autonomous Research & Decision System
 
 > **Planner × Specialist Skills × External Tools × Retrieval/RAG × Rule/ML × Confidence Gate × Critic**
 
@@ -393,7 +393,7 @@ The long-term objective is not to maximize the number of agents. It is to build 
 
 ## Project Summary
 
-**BTC Agent V3** evolved from a fixed Rule + LightGBM + conditional-LLM pipeline into an autonomous research architecture.
+**BTC Agent V3.1** evolved from a fixed Rule + LightGBM + conditional-LLM pipeline into an autonomous research architecture.
 
 The main engineering contribution is the separation of:
 
@@ -411,3 +411,23 @@ Data / Tools
 ```
 
 The system is designed so that AI adds research and reasoning capability without replacing deterministic validation, evidence traceability, or risk controls.
+
+
+## Cost-aware public deployment
+
+V3.1 adds backend-enforced guardrails for a public portfolio deployment. The browser never receives the OpenAI API key. The backend limits public request frequency, per-client daily LLM analyses, global daily LLM analyses, and the maximum LLM calls/tokens within a single analysis.
+
+When an LLM quota is exhausted, the request is **not failed**: Planner/specialist/reasoning stages fall back to deterministic Rule/ML logic and the UI labels the result as `rule/ml fallback`. Repeated HTTP abuse beyond the public request limit is rejected with HTTP 429. Cached live analyses do not create new LLM cost.
+
+Default policy:
+
+```text
+6 analysis requests / IP / hour
+10 analysis requests / IP / day
+3 LLM-enabled analyses / IP / day
+30 LLM-enabled analyses / service / day
+8 LLM calls / analysis
+30,000 observed tokens / analysis before further calls are disabled
+```
+
+The in-app counters are intentionally **process-local memory counters**, so a backend restart resets them. They are an application-level abuse guard, not a substitute for provider-side billing controls/alerts. Raw client IP addresses are not retained by the guard; only a short SHA-256-derived identifier is kept in memory.

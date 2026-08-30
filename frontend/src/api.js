@@ -24,6 +24,14 @@ export async function getHealth() {
   return response.json()
 }
 
+
+export async function getUsage() {
+  requireApiBase()
+  const response = await fetch(`${API_BASE_URL}/api/v1/usage`)
+  if (!response.ok) throw new Error(`Usage lookup failed (${response.status})`)
+  return response.json()
+}
+
 export async function getSkills() {
   requireApiBase()
   const response = await fetch(`${API_BASE_URL}/api/v1/skills`)

@@ -8,12 +8,26 @@ services:
     healthCheckPath: /health
     envVars:
       - key: USE_LLM
-        value: "false"
+        value: "true"
       - key: USE_SPECIALIST_LLM
         value: "true"
       - key: OPENAI_MODEL
         value: gpt-5.6-terra
       - key: ANALYSIS_CACHE_TTL_SECONDS
         value: "300"
+      - key: COST_GUARD_ENABLED
+        value: "true"
+      - key: IP_HOURLY_REQUEST_LIMIT
+        value: "6"
+      - key: IP_DAILY_REQUEST_LIMIT
+        value: "10"
+      - key: IP_DAILY_LLM_ANALYSIS_LIMIT
+        value: "3"
+      - key: GLOBAL_DAILY_LLM_ANALYSIS_LIMIT
+        value: "30"
+      - key: MAX_LLM_CALLS_PER_ANALYSIS
+        value: "8"
+      - key: MAX_LLM_TOKENS_PER_ANALYSIS
+        value: "30000"
       - key: CORS_ORIGINS
         value: "https://leejaehoon1234.github.io,http://localhost:5173,http://127.0.0.1:5173"

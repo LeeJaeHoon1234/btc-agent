@@ -24,3 +24,12 @@ SIMILARITY_EXCLUDE_RECENT_DAYS = int(
 RESEARCH_TIMEOUT_SECONDS = int(os.getenv("RESEARCH_TIMEOUT_SECONDS", "8"))
 
 USE_SPECIALIST_LLM = os.getenv("USE_SPECIALIST_LLM", "true").lower() in {"1", "true", "yes", "y"}
+
+# V3.1 public-service cost and abuse guard
+COST_GUARD_ENABLED = os.getenv("COST_GUARD_ENABLED", "true").lower() in {"1", "true", "yes", "y"}
+IP_HOURLY_REQUEST_LIMIT = int(os.getenv("IP_HOURLY_REQUEST_LIMIT", "6"))
+IP_DAILY_REQUEST_LIMIT = int(os.getenv("IP_DAILY_REQUEST_LIMIT", "10"))
+IP_DAILY_LLM_ANALYSIS_LIMIT = int(os.getenv("IP_DAILY_LLM_ANALYSIS_LIMIT", "3"))
+GLOBAL_DAILY_LLM_ANALYSIS_LIMIT = int(os.getenv("GLOBAL_DAILY_LLM_ANALYSIS_LIMIT", "30"))
+MAX_LLM_CALLS_PER_ANALYSIS = int(os.getenv("MAX_LLM_CALLS_PER_ANALYSIS", "8"))
+MAX_LLM_TOKENS_PER_ANALYSIS = int(os.getenv("MAX_LLM_TOKENS_PER_ANALYSIS", "30000"))
