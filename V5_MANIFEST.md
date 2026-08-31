@@ -38,3 +38,15 @@
 - `src/agents/v5/council_agent.py` — explicit specialist stance precedence, availability and domain counter-cases
 - `frontend/src/App.jsx` / `frontend/src/i18n.js` — normalized plain-language state labels
 - `V5_0_1_HOTFIX.md` — correctness and UI hotfix notes
+
+## V5.0.2 hotfix
+
+- `src/core/orchestrator.py` — preserves specialist stance/raw-score fields end-to-end
+- `src/tools/research/flow_tool.py` — excludes current New York ETF session from completed evidence
+- `src/engines/v4/horizon_engine.py` — latest + five-session ETF fallback prior balancing
+- `src/agents/v5/council_agent.py` — separate Macro/News members and clearer technical/domain explanations
+- `frontend/src/App.jsx` — unavailable/risk/source-aware council badges
+- `frontend/src/i18n.js` — Korean/English council labels and source metadata
+- `frontend/src/styles.css` — wider two-column council layout
+- `tests/test_v5_architecture.py` — end-to-end stance, ETF provisional-session, domain-split regressions
+- `V5_0_2_HOTFIX.md` — release rationale and verification notes

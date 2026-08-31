@@ -108,15 +108,18 @@ class BTCAgentOrchestrator:
                 continue
             out[name] = {
                 "available": bool(result.get("available", True)),
-                # This is the specialist's own domain score/regime, not the final research score.
-                # Keeping it lets the council preserve independent expert judgments without
-                # re-deriving their stance from hand-written signal priors.
+                # Preserve the specialist's own categorical judgment end-to-end.
+                # V5.0.2 correctly taught the council to prefer explicit stances, but the
+                # orchestrator accidentally stripped those fields before the council saw them.
+                "stance": result.get("stance"),
+                "raw_score": result.get("raw_score"),
                 "score": result.get("score"),
                 "regime": result.get("regime"),
                 "summary": result.get("summary"),
                 "confidence": result.get("confidence"),
                 "evidence": list(result.get("evidence", []))[:6],
                 "risks": list(result.get("risks", []))[:4],
+                "raw": result.get("raw") if isinstance(result.get("raw"), dict) else {},
             }
         return out
 
@@ -287,7 +290,7 @@ class BTCAgentOrchestrator:
                 signals=state.signals,
                 regime=str(state.regime.get("regime") or "unknown"),
                 source=source, forecasts=state.forecasts, market_state=state.market_state,
-                portfolio=state.portfolio, model_version="5.0.1",
+                portfolio=state.portfolio, model_version="5.0.2",
             )
             state.memory = prediction_journal.memory_context(limit=8)
             state.track_record = prediction_journal.performance_summary()

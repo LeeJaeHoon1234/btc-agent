@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import re
 
 import requests
@@ -67,6 +68,22 @@ def _parse_rows(html: str) -> list[dict]:
     return parsed
 
 
+
+def _completed_rows(rows: list[dict], now: datetime | None = None) -> tuple[list[dict], list[dict]]:
+    """Separate completed US sessions from the current New York calendar day.
+
+    Farside can expose an in-progress row for the current US session (often 0.0
+    early in the day).  Treating that row as a completed daily flow silently
+    corrupts both the latest-session value and rolling 5-session sum.  BitScope
+    therefore uses only dates strictly before the current New York date for
+    decision evidence and reports today's row separately as provisional.
+    """
+    ref = now or datetime.now(timezone.utc)
+    ny_today = ref.astimezone(ZoneInfo("America/New_York")).date()
+    completed = [row for row in rows if row["date"] < ny_today]
+    provisional = [row for row in rows if row["date"] >= ny_today]
+    return completed, provisional
+
 def fetch_etf_flow() -> dict:
     """Best-effort public US spot-BTC ETF flow snapshot from Farside.
 
@@ -83,19 +100,25 @@ def fetch_etf_flow() -> dict:
         response = requests.get(out["source_url"], timeout=TIMEOUT, headers={"User-Agent": "Mozilla/5.0 btc-agent-v5"})
         response.raise_for_status()
         parsed = _parse_rows(response.text)
-        if parsed:
-            latest = parsed[-1]
-            recent = parsed[-5:]
+        completed, provisional = _completed_rows(parsed)
+        if completed:
+            latest = completed[-1]
+            recent = completed[-5:]
             out.update({
                 "available": True,
                 "latest_date_label": latest["date_label"],
                 "latest_total_musd": latest["total_musd"],
                 "five_session_total_musd": sum(r["total_musd"] for r in recent),
-                "recent_rows": [{"date_label": r["date_label"], "total_musd": r["total_musd"]} for r in parsed[-7:]],
-                "parser": "strict_final_total_cell_v5",
+                "recent_rows": [{"date_label": r["date_label"], "total_musd": r["total_musd"]} for r in completed[-7:]],
+                "parser": "strict_completed_session_v5_0_2",
+                "completion_policy": "current New York calendar day is provisional and excluded from decision evidence",
             })
+            if provisional:
+                latest_provisional = provisional[-1]
+                out["provisional_date_label"] = latest_provisional["date_label"]
+                out["provisional_total_musd"] = latest_provisional["total_musd"]
         else:
-            out["errors"].append("Could not locate complete dated ETF-flow rows with a numeric Total cell.")
+            out["errors"].append("Could not locate a completed dated ETF-flow row with a numeric Total cell.")
     except Exception as exc:
         out["errors"].append(f"etf_flow: {type(exc).__name__}: {exc}")
     out["fetched_at"] = datetime.now(timezone.utc).isoformat()

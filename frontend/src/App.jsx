@@ -118,9 +118,26 @@ function CouncilPanel({ council, lang }) {
   const entries = Object.entries(council?.agents || {})
   if (!entries.length) return null
   const tone = (stance) => stance === 'BULLISH' ? 'positive' : stance === 'BEARISH' ? 'negative' : 'neutral'
+  const sourceLabel = (source) => source === 'independent_specialist' ? t.specialistSource : t.fallbackSource
   return <section className="council-panel">
     <div className="section-heading"><div><p className="eyebrow">{t.agentCouncil}</p><h3>{t.agentCouncilTitle}</h3></div><Badge tone={Number(council?.disagreement || 0) >= .55 ? 'warning' : 'neutral'}>{t.disagreement} {fmt(Number(council?.disagreement || 0) * 100, 0, lang)}%</Badge></div>
-    <div className="council-grid">{entries.map(([name, agent]) => <article key={name} className={`council-agent council-${tone(agent?.stance)}`}><div className="council-agent-head"><strong>{t.councilNames?.[name] || humanCode(name)}</strong><Badge tone={agent?.available === false ? 'warning' : tone(agent?.stance)}>{councilStanceLabel(agent?.stance, agent?.available, lang)} · {fmt(Number(agent?.confidence || 0) * 100, 0, lang)}%</Badge></div><p>{agent?.thesis || '—'}</p><small><b>{t.counterpoint}</b> {agent?.counterargument || '—'}</small></article>)}</div>
+    <div className="council-grid">{entries.map(([name, agent]) => {
+      const isRisk = name === 'risk'
+      const unavailable = agent?.available === false
+      const badgeText = isRisk
+        ? `${t.riskPressure} ${fmt(agent?.risk_pressure || 0, 0, lang)}/100`
+        : unavailable
+          ? councilStanceLabel(agent?.stance, false, lang)
+          : `${councilStanceLabel(agent?.stance, true, lang)} · ${fmt(Number(agent?.confidence || 0) * 100, 0, lang)}%`
+      const badgeTone = isRisk
+        ? Number(agent?.risk_pressure || 0) >= 45 ? 'negative' : Number(agent?.risk_pressure || 0) >= 20 ? 'warning' : 'neutral'
+        : unavailable ? 'warning' : tone(agent?.stance)
+      return <article key={name} className={`council-agent council-${tone(agent?.stance)}`}>
+        <div className="council-agent-head"><strong>{t.councilNames?.[name] || humanCode(name)}</strong><Badge tone={badgeTone}>{badgeText}</Badge></div>
+        {!isRisk && <div className="council-agent-meta"><span>{sourceLabel(agent?.source)}</span>{Number(agent?.fact_count || 0) > 0 && <span>{t.evidenceCount(Number(agent.fact_count))}</span>}</div>}
+        <p>{agent?.thesis || '—'}</p><small><b>{t.counterpoint}</b> {agent?.counterargument || '—'}</small>
+      </article>
+    })}</div>
   </section>
 }
 

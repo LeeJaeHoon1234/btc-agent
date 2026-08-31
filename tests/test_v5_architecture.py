@@ -115,3 +115,78 @@ def test_walkforward_validator_truncates_and_returns_bounded_metrics():
         assert 0 <= metrics["direction_accuracy"] <= 1
         assert 0 <= metrics["mean_brier"] <= 1
         assert 0 <= metrics["q10_q90_coverage"] <= 1
+
+
+def test_orchestrator_preserves_specialist_stance_and_raw_score_end_to_end_boundary():
+    views = BTCAgentOrchestrator._independent_specialist_views({
+        "technical": {
+            "available": True,
+            "stance": "NEUTRAL",
+            "raw_score": 63,
+            "score": 26,
+            "confidence": 0.75,
+            "summary": "Technical stance is neutral.",
+            "evidence": ["가격이 MA200 위", "MA20 단기 추세 하락"],
+        }
+    })
+    assert views["technical"]["stance"] == "NEUTRAL"
+    assert views["technical"]["raw_score"] == 63
+    council = build_agent_council(
+        facts=[{"id": "t1", "domain": "technical", "horizons": ["NOW"], "fact": "technical", "simple": "기술", "value": 1, "freshness": "live"}],
+        priors={"t1": {"direction": 1, "strength": 1.0}}, forecasts={"1W": {"q10_return_pct": -4}},
+        market_state={"acute_state": "normal"}, data_health={"price": {"status": "ok"}}, events=[],
+        specialist_views=views, language="ko",
+    )
+    assert council["agents"]["technical"]["stance"] == "NEUTRAL"
+    assert "63/100" in council["agents"]["technical"]["thesis"]
+    assert "MA200" in council["agents"]["technical"]["thesis"]
+
+
+def test_etf_current_new_york_session_is_provisional_not_completed():
+    from datetime import datetime, timezone
+    from src.tools.research.flow_tool import _completed_rows, _parse_rows
+    html = """<table>
+      <tr><td>28 Aug 2026</td><td>(33.4)</td><td>(201.9)</td></tr>
+      <tr><td>31 Aug 2026</td><td>0.0</td><td>0.0</td></tr>
+    </table>"""
+    rows = _parse_rows(html)
+    completed, provisional = _completed_rows(rows, now=datetime(2026, 8, 31, 14, 0, tzinfo=timezone.utc))
+    assert [r["date_label"] for r in completed] == ["28 Aug 2026"]
+    assert [r["date_label"] for r in provisional] == ["31 Aug 2026"]
+    assert completed[-1]["total_musd"] == -201.9
+
+
+def test_macro_and_news_are_independent_council_members():
+    council = build_agent_council(
+        facts=[
+            {"id": "m1", "domain": "macro", "horizons": ["1W"], "fact": "dxy", "simple": "달러 상승", "value": 1, "freshness": "daily"},
+            {"id": "n1", "domain": "news", "horizons": ["1W"], "fact": "headline", "simple": "ETF headline", "value": "x", "freshness": "recent"},
+        ],
+        priors={"m1": {"direction": -1, "strength": 0.8}, "n1": {"direction": 0, "strength": 0.4}},
+        forecasts={"1W": {"q10_return_pct": -4}}, market_state={"acute_state": "normal"},
+        data_health={"macro": {"status": "ok"}, "news": {"status": "ok"}}, events=[],
+        specialist_views={
+            "macro": {"available": True, "regime": "RISK_OFF_HEADWIND", "score": -30, "confidence": 0.8, "evidence": ["DXY up"]},
+            "news": {"available": True, "score": 0, "confidence": 0.5, "evidence": ["ETF headline"]},
+        }, language="ko",
+    )
+    assert "macro" in council["agents"]
+    assert "news" in council["agents"]
+    assert "macro_news" not in council["agents"]
+
+
+def test_etf_prior_balances_latest_session_with_five_session_trend():
+    # Regression for 28 Aug 2026: latest completed session was -201.9M while
+    # the latest five completed sessions still summed to +924.5M. The fallback
+    # prior should stay mixed rather than overreact to one session.
+    from types import SimpleNamespace
+    from src.engines.v4.horizon_engine import build_signal_registry
+    state = SimpleNamespace(
+        latest={}, live={}, experts={"derivatives": {"raw": {}}, "news": {}},
+        external={"flow": {"available": True, "latest_total_musd": -201.9, "five_session_total_musd": 924.5, "latest_date_label": "28 Aug 2026"}, "sentiment": {}, "onchain": {}},
+        ml={},
+    )
+    sig = next(x for x in build_signal_registry(state) if x["id"] == "S_ETF_FLOW")
+    assert sig["direction"] == 0
+    assert sig["strength"] < 0.12
+    assert "+924" in sig["simple"] or "+925" in sig["simple"]

@@ -93,7 +93,7 @@ class PredictionJournal:
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(self.path)
 
-    def add_prediction(self, *, price: float, horizons: dict, signals: list[dict], regime: str | None, source: str = "live", now: datetime | None = None, forecasts: dict | None = None, market_state: dict | None = None, portfolio: dict | None = None, model_version: str = "5.0.1") -> list[str]:
+    def add_prediction(self, *, price: float, horizons: dict, signals: list[dict], regime: str | None, source: str = "live", now: datetime | None = None, forecasts: dict | None = None, market_state: dict | None = None, portfolio: dict | None = None, model_version: str = "5.0.2") -> list[str]:
         if not price or price <= 0:
             return []
         now = now or _utcnow()

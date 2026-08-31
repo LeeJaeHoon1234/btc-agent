@@ -6,9 +6,12 @@ from typing import Any
 DOMAIN_MAP = {
     "price": "technical", "technical": "technical", "model": "historical",
     "derivatives": "derivatives", "onchain": "onchain_flow", "flow": "onchain_flow",
-    "sentiment": "macro_news", "macro": "macro_news", "news": "macro_news",
+    "sentiment": "news", "macro": "macro", "news": "news",
 }
-COUNCIL_DOMAINS = ("technical", "derivatives", "onchain_flow", "macro_news", "historical", "risk")
+# Macro and news are intentionally separate members.  Combining them under one
+# card made the UI say “macro/news” while the council actually consumed only the
+# macro specialist.  Independent cards make disagreement auditable.
+COUNCIL_DOMAINS = ("technical", "derivatives", "onchain_flow", "macro", "news", "historical", "risk")
 
 
 def _stance(score: float) -> str:
@@ -61,20 +64,28 @@ def _display_thesis(domain: str, view: dict | None, facts: list[dict], stance: s
         raw = view.get("raw_score")
         if raw is not None:
             label = {"BULLISH": "강세", "BEARISH": "약세", "NEUTRAL": "중립"}.get(stance, "중립")
-            return f"기술 지표 종합은 {label}입니다. 기술 점수는 {float(raw):.0f}/100입니다."
+            evidence = [str(x) for x in (view.get("evidence") or [])[:2]]
+            suffix = f" 주요 근거: {' · '.join(evidence)}." if evidence else ""
+            return f"기술 지표 종합은 {label}입니다. 기술 점수는 {float(raw):.0f}/100입니다.{suffix}"
     if domain == "derivatives":
         if view.get("available") is False:
             return "파생시장 데이터가 없어 OI·펀딩·포지셔닝을 확인할 수 없습니다. 이 영역은 강한 근거로 쓰지 않습니다."
         regime = _ko_regime(view.get("regime"))
         evidence = [str(x) for x in (view.get("evidence") or [])[:2]]
         suffix = f" ({' · '.join(evidence)})" if evidence else ""
-        return f"파생시장은 {regime}으로 분류됐습니다.{suffix}"
-    if domain == "macro_news":
+        return f"파생시장 상태는 {regime}입니다.{suffix}"
+    if domain == "macro":
         regime = _ko_regime(view.get("regime"))
         evidence = [str(x) for x in (view.get("evidence") or [])[:2]]
         if view:
             suffix = f" ({' · '.join(evidence)})" if evidence else ""
             return f"거시 환경은 {regime} 쪽입니다.{suffix}"
+    if domain == "news":
+        evidence = [str(x) for x in (view.get("evidence") or [])[:2]]
+        if view.get("available") is False:
+            return "최신 뉴스 데이터를 확인할 수 없어 방향 근거로 쓰지 않습니다."
+        if evidence:
+            return "최근 뉴스에서 주목한 항목: " + " · ".join(evidence) + "."
     if domain == "historical":
         raw = view.get("raw") or {}
         m7 = raw.get("median_forward_7d_pct")
@@ -99,7 +110,8 @@ def _counterargument(domain: str, view: dict | None, stance: str, language: str)
         "technical": "가격 구조가 바뀌거나 추세 지표가 꺾이면 기술적 판단도 빠르게 달라질 수 있습니다.",
         "derivatives": "OI·펀딩·청산 데이터가 바뀌거나 누락되면 파생시장 판단 신뢰도도 달라집니다.",
         "onchain_flow": "ETF·온체인 자금흐름은 일 단위로 갱신되므로 실시간 가격 움직임과 시차가 있습니다.",
-        "macro_news": "거시는 BTC 방향을 단독으로 결정하지 않으며 가격 자체가 거시 역풍을 무시할 수도 있습니다.",
+        "macro": "거시는 BTC 방향을 단독으로 결정하지 않으며 가격 자체가 거시 역풍을 무시할 수도 있습니다.",
+        "news": "헤드라인은 빠르게 바뀌고 중복·추측성 보도가 섞일 수 있어 단독 매매 근거로 쓰지 않습니다.",
         "historical": "유사한 과거 구간도 이후 결과 편차가 커 현재 장이 그대로 반복된다고 볼 수 없습니다.",
     }
     return messages.get(domain, "현재 근거가 바뀌면 이 판단도 달라질 수 있습니다.")
@@ -129,8 +141,8 @@ def build_agent_council(*, facts: list[dict], priors: dict[str, dict], forecasts
 
         source_view = specialist_views.get(domain)
         if source_view is None:
-            # Map V3 specialists into V5 council names.
-            source_view = specialist_views.get({"macro_news": "macro", "historical": "historical", "technical": "technical", "derivatives": "derivatives"}.get(domain, ""))
+            # Map V3 specialists into V5 council names without merging independent domains.
+            source_view = specialist_views.get({"macro": "macro", "news": "news", "historical": "historical", "technical": "technical", "derivatives": "derivatives"}.get(domain, ""))
         confidence = float((source_view or {}).get("confidence", 0.45) or 0.45)
         summary = str((source_view or {}).get("summary") or "")
         # Evidence ordering intentionally does not use bullish/bearish prior strength.

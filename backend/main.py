@@ -20,7 +20,7 @@ from src.core.v3.usage_guard import usage_guard
 from src.memory.prediction_journal import prediction_journal
 
 logger = logging.getLogger(__name__)
-VERSION = "5.0.1"
+VERSION = "5.0.2"
 
 
 class AnalysisRequest(BaseModel):

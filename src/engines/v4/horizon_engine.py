@@ -162,12 +162,19 @@ def build_signal_registry(state) -> list[dict]:
 
     if flow.get("available") and _f(flow.get("latest_total_musd")) is not None:
         val = _f(flow.get("latest_total_musd")); five = _f(flow.get("five_session_total_musd")); flow_date = str(flow.get("latest_date_label") or "최신 완료 세션")
-        direction = 1 if val > 0 else -1 if val < 0 else 0
+        # Fallback prior only: avoid letting one daily ETF print dominate a still-strong
+        # multi-session flow trend.  The raw latest and 5-session values remain separate
+        # facts for the autonomous analyst.
+        latest_component = max(-1.0, min(1.0, val / 500.0))
+        five_component = max(-1.0, min(1.0, five / 1500.0)) if five is not None else 0.0
+        flow_prior = 0.6 * latest_component + (0.4 * five_component if five is not None else 0.0)
+        direction = 1 if flow_prior > 0.12 else -1 if flow_prior < -0.12 else 0
+        strength = min(1.0, abs(flow_prior))
         flow_word = "순유입" if val > 0 else "순유출" if val < 0 else "순유입·유출 0"
         simple = f"미국 현물 BTC ETF는 {flow_date}에 {abs(val):.0f}M달러 {flow_word}입니다."
         if five is not None:
             simple += f" 최근 5세션 합계는 {five:+.0f}M달러입니다."
-        signals.append(_signal("S_ETF_FLOW", "flow", ["TODAY", "1W", "1M"], direction, min(1, abs(val) / 800), f"미국 현물 ETF {flow_date} {val:+.1f}M USD / 5세션 {five:+.1f}M USD" if five is not None else f"미국 현물 ETF {flow_date} {val:+.1f}M USD", simple, val, "daily"))
+        signals.append(_signal("S_ETF_FLOW", "flow", ["TODAY", "1W", "1M"], direction, strength, f"미국 현물 ETF {flow_date} {val:+.1f}M USD / 5세션 {five:+.1f}M USD" if five is not None else f"미국 현물 ETF {flow_date} {val:+.1f}M USD", simple, val, "daily"))
 
     if sentiment.get("available") and _f(sentiment.get("value")) is not None:
         val = _f(sentiment.get("value")); direction = -1 if val >= 80 else 1 if val <= 25 else 0

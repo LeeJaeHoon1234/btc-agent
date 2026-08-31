@@ -23,7 +23,7 @@
 
 ## What is BitScope?
 
-**BitScope V5.0.1** is a real-time, multi-agent Bitcoin market analysis and portfolio decision-support system. It combines **live BTC market microstructure, technical indicators, derivatives, macro data, news/sentiment, on-chain context, LightGBM, and LLM reasoning** into one readable answer across five different horizons:
+**BitScope V5.0.2** is a real-time, multi-agent Bitcoin market analysis and portfolio decision-support system. It combines **live BTC market microstructure, technical indicators, derivatives, macro data, news/sentiment, on-chain context, LightGBM, and LLM reasoning** into one readable answer across five different horizons:
 
 **NOW · TODAY · 1W · 1M · 1Y**
 
@@ -35,7 +35,7 @@ The project is intentionally a **decision-support/research system**, not an auto
 
 ## Why this project is different
 
-| Problem | BitScope V5.0.1 approach |
+| Problem | BitScope V5.0.2 approach |
 |---|---|
 | A daily signal misses an intraday crash or rebound | Live Upbit WebSocket + intraday indicators + event detection |
 | One score hides why the market looks bullish/bearish | Raw Fact Registry + independent specialist council; deterministic priors are fallback-only |
@@ -83,13 +83,15 @@ flowchart TD
     F --> C1[Technical]
     F --> C2[Derivatives]
     F --> C3[On-chain / ETF Flow]
-    F --> C4[Macro / News]
-    F --> C5[Historical Analogs]
+    F --> C4[Macro]
+    F --> C5[News / Events]
+    F --> C6[Historical Analogs]
     C1 --> C[Independent Agent Council]
     C2 --> C
     C3 --> C
     C4 --> C
     C5 --> C
+    C6 --> C
 
     P --> Q[Quant Decision]
     C --> Q
