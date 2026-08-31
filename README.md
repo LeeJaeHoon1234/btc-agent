@@ -1,4 +1,4 @@
-# ₿ BTC Agent V4.1 — Real-Time Multi-Agent Bitcoin Decision Support
+# ₿ BitScope — Real-Time Multi-Agent Bitcoin Market Intelligence
 
 <p align="center">
   <strong>Live market data → specialist analysis → multi-horizon reasoning → critique → reflection memory.</strong><br/>
@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://LeeJaeHoon1234.github.io/btc-agent/"><img alt="Live Demo" src="https://img.shields.io/badge/LIVE%20DEMO-OPEN%20BTC%20AGENT-2ea44f?style=for-the-badge"></a>
+  <a href="https://LeeJaeHoon1234.github.io/btc-agent/"><img alt="Live Demo" src="https://img.shields.io/badge/LIVE%20DEMO-OPEN%20BITSCOPE-2ea44f?style=for-the-badge"></a>
   <a href="https://leejaehoon1234-btc-agent-api.onrender.com/docs"><img alt="API Docs" src="https://img.shields.io/badge/API-FASTAPI%20DOCS-009688?style=for-the-badge&logo=fastapi&logoColor=white"></a>
 </p>
 
@@ -21,13 +21,13 @@
 
 ---
 
-## What is BTC Agent?
+## What is BitScope?
 
-**BTC Agent V4.1** is a real-time, multi-agent Bitcoin market analysis and decision-support system. It combines **live BTC market microstructure, technical indicators, derivatives, macro data, news/sentiment, on-chain context, LightGBM, and LLM reasoning** into one readable answer across five different horizons:
+**BitScope V4.1** is a real-time, multi-agent Bitcoin market analysis and decision-support system. It combines **live BTC market microstructure, technical indicators, derivatives, macro data, news/sentiment, on-chain context, LightGBM, and LLM reasoning** into one readable answer across five different horizons:
 
 **NOW · TODAY · 1W · 1M · 1Y**
 
-Instead of asking one LLM to search, calculate, and trade at the same time, BTC Agent separates the workflow:
+Instead of asking one LLM to search, calculate, and trade at the same time, BitScope separates the workflow:
 
 > **Python calculates facts. Specialists interpret domains. The final agent resolves conflicts. A critic checks the answer. Reflection memory evaluates what happened later.**
 
@@ -35,7 +35,7 @@ The project is intentionally a **decision-support/research system**, not an auto
 
 ## Why this project is different
 
-| Problem | BTC Agent V4.1 approach |
+| Problem | BitScope V4.1 approach |
 |---|---|
 | A daily signal misses an intraday crash or rebound | Live Upbit WebSocket + intraday indicators + event detection |
 | One score hides why the market looks bullish/bearish | Evidence registry + domain-specific specialists |
@@ -47,6 +47,10 @@ The project is intentionally a **decision-support/research system**, not an auto
 | Historical feedback can overfit current decisions | Current market data always outranks memory |
 
 ## Live experience
+
+### Korean / English in one app
+
+BitScope ships as a single bilingual application. Use the **KR | EN** toggle in the header; the preference is saved locally, and the final horizon analysis / user-facing AI explanation is regenerated in the selected language.
 
 ### Real-time market layer
 
@@ -124,7 +128,7 @@ The user should not have to inspect 30 indicators to understand the result. The 
 
 Every horizon decision can be written to a **Prediction Journal** with its timestamp, stance, confidence, market regime and selected evidence.
 
-After the relevant horizon matures, BTC Agent compares the original decision with the realized market move:
+After the relevant horizon matures, BitScope compares the original decision with the realized market move:
 
 ```text
 Decision
@@ -178,7 +182,7 @@ A LightGBM model provides a **30-day support signal**. It is deliberately not tr
 
 ## Reliability and guardrails
 
-BTC Agent is designed around the assumption that **market data and LLM output can both fail**.
+BitScope is designed around the assumption that **market data and LLM output can both fail**.
 
 The live layer validates, among other things:
 
@@ -291,5 +295,5 @@ Copyright © 2026 Jaehoon Lee. All rights reserved unless otherwise stated in th
 
 <p align="center">
   <strong>If you find the architecture or implementation useful, consider starring the repository.</strong><br/>
-  <a href="https://LeeJaeHoon1234.github.io/btc-agent/">Try the live BTC Agent →</a>
+  <a href="https://LeeJaeHoon1234.github.io/btc-agent/">Try BitScope live →</a>
 </p>

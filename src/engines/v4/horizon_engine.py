@@ -183,7 +183,7 @@ def build_signal_registry(state) -> list[dict]:
     return signals
 
 
-def _fallback_horizon(horizon: str, signals: list[dict], events: list[dict]) -> dict:
+def _fallback_horizon(horizon: str, signals: list[dict], events: list[dict], language: str = "ko") -> dict:
     relevant = [s for s in signals if horizon in s.get("horizons", [])]
     weighted = sum(s["direction"] * s["strength"] for s in relevant)
     total = sum(max(.15, s["strength"]) for s in relevant) or 1
@@ -192,24 +192,39 @@ def _fallback_horizon(horizon: str, signals: list[dict], events: list[dict]) -> 
     elif score <= -.18: stance = "NEGATIVE"
     else: stance = "CAUTION" if any(e.get("severity", 0) >= 3 for e in events) and horizon in {"NOW", "TODAY"} else "NEUTRAL"
     ranked = sorted(relevant, key=lambda s: s["strength"], reverse=True)[:4]
-    headline_map = {
-        "POSITIVE": "상승 쪽 신호가 조금 더 많습니다.",
-        "NEGATIVE": "하락 위험 신호가 조금 더 강합니다.",
-        "CAUTION": "움직임이 커서 지금은 확인이 더 필요합니다.",
-        "NEUTRAL": "방향 신호가 엇갈립니다.",
-    }
+    if language == "en":
+        headline_map = {
+            "POSITIVE": "Constructive signals slightly outweigh the risks.",
+            "NEGATIVE": "Downside risk signals are currently stronger.",
+            "CAUTION": "The move is large enough to require more confirmation.",
+            "NEUTRAL": "Directional evidence is mixed.",
+        }
+        summary = "The deterministic evidence is mixed; inspect the selected signal IDs for the underlying facts." if ranked else "There is not enough confirmed data for a strong view."
+        good = [f"Constructive evidence: {s['id']}" for s in ranked if s["direction"] > 0][:2]
+        risks = [f"Risk evidence: {s['id']}" for s in ranked if s["direction"] < 0][:2]
+    else:
+        headline_map = {
+            "POSITIVE": "상승 쪽 신호가 조금 더 많습니다.",
+            "NEGATIVE": "하락 위험 신호가 조금 더 강합니다.",
+            "CAUTION": "움직임이 커서 지금은 확인이 더 필요합니다.",
+            "NEUTRAL": "방향 신호가 엇갈립니다.",
+        }
+        summary = " ".join(s["simple"] for s in ranked[:2]) or "확인 가능한 데이터가 충분하지 않습니다."
+        good = [s["simple"] for s in ranked if s["direction"] > 0][:2]
+        risks = [s["simple"] for s in ranked if s["direction"] < 0][:2]
     return {
         "horizon": horizon,
         "stance": stance,
         "confidence": round(min(.78, .42 + abs(score) * .45 + min(len(relevant), 8) * .015), 2),
         "headline": headline_map[stance],
-        "summary": " ".join(s["simple"] for s in ranked[:2]) or "확인 가능한 데이터가 충분하지 않습니다.",
+        "summary": summary,
         "key_signal_ids": [s["id"] for s in ranked[:4]],
-        "good": [s["simple"] for s in ranked if s["direction"] > 0][:2],
-        "risks": [s["simple"] for s in ranked if s["direction"] < 0][:2],
+        "good": good,
+        "risks": risks,
         "source": "deterministic_fallback",
     }
 
 
-def build_horizon_fallbacks(signals: list[dict], events: list[dict]) -> dict[str, dict]:
-    return {h: _fallback_horizon(h, signals, events) for h in HORIZONS}
+def build_horizon_fallbacks(signals: list[dict], events: list[dict], language: str = "ko") -> dict[str, dict]:
+    language = "en" if language == "en" else "ko"
+    return {h: _fallback_horizon(h, signals, events, language=language) for h in HORIZONS}

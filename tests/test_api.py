@@ -13,7 +13,7 @@ def test_health_v4():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["version"] == "4.1.0"
+    assert body["version"] == "4.1.1"
     assert body["live_layer"] is True
     assert body["reflection_memory"] is True
     assert "model_available" in body and "llm_available" in body
@@ -23,7 +23,7 @@ def test_demo_live_endpoint_is_fast_layer_contract():
     response = client.get("/api/v1/live?source=demo&market=KRW-BTC")
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["meta"]["version"] == "4.1.0"
+    assert body["meta"]["version"] == "4.1.1"
     assert body["live"]["available"] is True
     assert body["live"]["ticker"]["price"] > 0
     assert "return_1h_pct" in body["live"]["metrics"]
@@ -38,7 +38,7 @@ def test_demo_analysis_v4_contract():
     response = client.post("/api/v1/analyze", json={"market": "KRW-BTC", "history_years": 8, "source": "demo"})
     assert response.status_code == 200, response.text
     body = response.json(); a = body["analysis"]
-    assert body["meta"]["version"] == "4.1.0"
+    assert body["meta"]["version"] == "4.1.1"
     assert set(a["horizons"]) == {"NOW", "TODAY", "1W", "1M", "1Y"}
     assert a["user_view"]["actions"].keys() == {"hold", "add", "take_profit"}
     assert a["live"]["available"] is True
@@ -73,5 +73,24 @@ def test_journal_endpoint_contract():
     response = client.get("/api/v1/journal")
     assert response.status_code == 200
     body = response.json()
-    assert body["meta"]["version"] == "4.1.0"
+    assert body["meta"]["version"] == "4.1.1"
     assert "records" in body["journal"] and "reflections" in body["journal"]
+
+
+def test_demo_analysis_supports_english_ui_contract():
+    response = client.post(
+        "/api/v1/analyze",
+        json={
+            "market": "KRW-BTC",
+            "history_years": 8,
+            "source": "demo",
+            "language": "en",
+            "question": "Analyze BTC across NOW, TODAY, 1W, 1M, and 1Y horizons.",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json(); a = body["analysis"]
+    assert body["meta"]["language"] == "en"
+    assert a["user_view"]["language"] == "en"
+    assert a["user_view"]["actions"]["hold"] in {"Hold", "Consider reducing"}
+    assert a["horizons"]["NOW"]["headline"]

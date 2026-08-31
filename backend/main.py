@@ -20,7 +20,7 @@ from src.core.v3.usage_guard import usage_guard
 from src.memory.prediction_journal import prediction_journal
 
 logger = logging.getLogger(__name__)
-VERSION = "4.1.0"
+VERSION = "4.1.1"
 
 
 class AnalysisRequest(BaseModel):
@@ -28,6 +28,7 @@ class AnalysisRequest(BaseModel):
     history_years: int = Field(default=HISTORY_YEARS, ge=2, le=12)
     source: Literal["live", "demo"] = "live"
     question: str = Field(default=DEFAULT_QUESTION, min_length=3, max_length=600)
+    language: Literal["ko", "en"] = "ko"
 
 
 class HealthResponse(BaseModel):
@@ -56,8 +57,8 @@ def _client_key(request: Request) -> str:
 
 
 app = FastAPI(
-    title="BTC Agent V4.1 API",
-    description="Multi-speed BTC decision-support system with readable live context, data sanity checks, multi-horizon analysis, and reflection memory.",
+    title="BitScope API",
+    description="Real-time multi-horizon Bitcoin market intelligence with deterministic data checks, specialist reasoning, and reflection memory.",
     version=VERSION,
 )
 app.add_middleware(CORSMiddleware, allow_origins=_cors_origins(), allow_credentials=False, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Accept"])
@@ -65,7 +66,7 @@ app.add_middleware(CORSMiddleware, allow_origins=_cors_origins(), allow_credenti
 
 @app.get("/", include_in_schema=False)
 def root() -> dict:
-    return {"service": "BTC Agent V4.1 API", "version": VERSION, "docs": "/docs", "health": "/health", "live": "/api/v1/live", "usage": "/api/v1/usage", "journal": "/api/v1/journal"}
+    return {"service": "BitScope API", "version": VERSION, "docs": "/docs", "health": "/health", "live": "/api/v1/live", "usage": "/api/v1/usage", "journal": "/api/v1/journal"}
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -105,7 +106,7 @@ def analyze(payload: AnalysisRequest, request: Request) -> dict:
     if not rate.allowed:
         raise HTTPException(status_code=429, detail="Public analysis rate limit reached. Try again later.", headers={"Retry-After": str(rate.retry_after_seconds or 60)})
     try:
-        state, cached, llm_usage = analysis_service.analyze(market=payload.market, history_years=payload.history_years, source=payload.source, question=payload.question, client_key=client_key)
+        state, cached, llm_usage = analysis_service.analyze(market=payload.market, history_years=payload.history_years, source=payload.source, question=payload.question, client_key=client_key, language=payload.language)
     except (requests.RequestException, ConnectionError, TimeoutError) as exc:
         raise HTTPException(status_code=502, detail="시장 데이터 제공처에 연결하지 못했습니다. 잠시 뒤 다시 시도하거나 source='demo'로 확인하세요.") from exc
     except (ValueError, IndexError, KeyError) as exc:
@@ -113,4 +114,4 @@ def analyze(payload: AnalysisRequest, request: Request) -> dict:
     except Exception as exc:
         logger.exception("Unexpected analysis failure")
         raise HTTPException(status_code=500, detail="Internal analysis error.") from exc
-    return {"meta": {"generated_at": datetime.now(timezone.utc).isoformat(), "version": VERSION, "market": payload.market, "history_years": payload.history_years, "source": payload.source, "cached": cached, "llm_usage": llm_usage}, "analysis": serialize_state(state)}
+    return {"meta": {"generated_at": datetime.now(timezone.utc).isoformat(), "version": VERSION, "market": payload.market, "history_years": payload.history_years, "source": payload.source, "language": payload.language, "cached": cached, "llm_usage": llm_usage}, "analysis": serialize_state(state)}

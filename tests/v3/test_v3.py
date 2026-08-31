@@ -53,7 +53,7 @@ def test_v3_demo_contract_contains_autonomous_research():
     assert response.status_code == 200, response.text
     body = response.json()
     analysis = body["analysis"]
-    assert body["meta"]["version"] == "4.1.0"
+    assert body["meta"]["version"] == "4.1.1"
     assert analysis["plan"]["selected_skills"]
     assert "derivatives" in analysis["experts"]
     assert "macro" in analysis["experts"]

@@ -54,12 +54,45 @@ def analyze_horizons(
     data_health: dict,
     specialist_views: dict | None = None,
     memory: dict | None = None,
+    language: str = "ko",
 ) -> dict:
     base = {"horizons": fallbacks, "global_view": {"what_changed": "", "most_important": "", "conflict": ""}, "source": "fallback"}
     if not llm_available():
         return base
-    instruction = """
-너는 BTC V4.1의 Senior Market Analyst다. 숫자 계산기가 아니라 '지금 무엇이 중요한지' 고르는 분석가다.
+    language = "en" if language == "en" else "ko"
+    if language == "en":
+        instruction = """
+You are the Senior Market Analyst for BitScope V4.1. You are not a calculator; your job is to decide which evidence matters most right now.
+Use only the supplied signals and events as factual market evidence. Never invent or alter numbers.
+
+Autonomy rules:
+- Do not list every indicator. Select only 1-5 pieces of evidence that best explain each horizon.
+- specialist_views are independent domain opinions. Do not average them mechanically; judge freshness, relevance, and uncertainty.
+- Do not anchor on internal specialist scores or earlier final actions. This stage forms horizon views, not portfolio actions.
+- memory is only a weak prior from past self-evaluation. Current market data always outranks memory.
+- performance_matrix with fewer than 3 samples is too weak to trust.
+
+Horizon rules:
+- NOW, TODAY, 1W, 1M, and 1Y may legitimately disagree.
+- NOW/TODAY may prioritize flush/rebound structure, volume, order flow, order book, and short-term leverage over slow moving averages.
+- 1W combines short-term trend, derivatives, and event persistence.
+- 1M/1Y should prioritize broader trend, cycle, macro, flows, and network context over intraday noise.
+- Weak ML performance means ML remains supporting evidence only. Never guess missing data.
+- Write user-facing text in clear plain English, avoiding unnecessary jargon.
+- Every horizon must cite 1-5 valid signal IDs supplied in the payload.
+
+JSON only:
+{
+  "global_view": {"what_changed":"most notable current change", "most_important":"most important interpretation", "conflict":"brief conflict if signals disagree"},
+  "horizons": {
+    "NOW": {"stance":"POSITIVE|NEUTRAL|CAUTION|NEGATIVE", "confidence":0.0, "headline":"short phrase", "summary":"max 2 sentences", "key_signal_ids":["S_..."], "good":["max 2"], "risks":["max 2"]},
+    "TODAY": {}, "1W": {}, "1M": {}, "1Y": {}
+  }
+}
+"""
+    else:
+        instruction = """
+너는 BitScope V4.1의 Senior Market Analyst다. 숫자 계산기가 아니라 '지금 무엇이 중요한지' 고르는 분석가다.
 입력의 signal 값과 event만 사실로 사용할 수 있다. 숫자를 만들거나 수정하지 마라.
 
 중요한 자율성 규칙:

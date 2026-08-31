@@ -61,12 +61,13 @@ class AnalysisService:
     """Runs BTC Agent V4 with a slow-layer cache and request-scoped LLM budget."""
     def __init__(self) -> None:
         self.ttl_seconds = ANALYSIS_CACHE_TTL_SECONDS
-        self._cache: dict[tuple[str, int, str, str], CacheEntry] = {}
+        self._cache: dict[tuple[str, int, str, str, str], CacheEntry] = {}
         self._lock = threading.Lock()
 
-    def analyze(self, market: str, history_years: int, source: SourceMode = "live", question: str = "", client_key: str = "anonymous"):
+    def analyze(self, market: str, history_years: int, source: SourceMode = "live", question: str = "", client_key: str = "anonymous", language: str = "ko"):
+        language = "en" if language == "en" else "ko"
         normalized_question = " ".join((question or "").split()).strip().lower()
-        key = (market, history_years, source, normalized_question)
+        key = (market, history_years, source, normalized_question, language)
         now = time.monotonic()
         if source == "live":
             with self._lock:
@@ -81,9 +82,9 @@ class AnalysisService:
         with llm_budget_context(allowed=reservation.allowed, reason=reservation.reason) as budget:
             if source == "demo":
                 market_df = make_demo_market_data(days=max(450, history_years * 365))
-                state = orchestrator.run(market_df=market_df, question=question, source=source)
+                state = orchestrator.run(market_df=market_df, question=question, source=source, language=language)
             else:
-                state = orchestrator.run(question=question, source=source)
+                state = orchestrator.run(question=question, source=source, language=language)
 
         budget_snapshot = budget.snapshot()
         if reservation.reserved and budget_snapshot["calls_used"] == 0:

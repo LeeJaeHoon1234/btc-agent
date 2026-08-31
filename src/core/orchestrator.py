@@ -107,7 +107,8 @@ class BTCAgentOrchestrator:
             }
         return out
 
-    def run(self, market_df=None, question: str | None = None, source: str = "live") -> AgentState:
+    def run(self, market_df=None, question: str | None = None, source: str = "live", language: str = "ko") -> AgentState:
+        language = "en" if language == "en" else "ko"
         state = AgentState()
         state.question = (question or DEFAULT_QUESTION).strip()
         injected = market_df is not None
@@ -210,15 +211,15 @@ class BTCAgentOrchestrator:
 
         # V4.1 autonomy: facts -> independent specialists -> horizon-aware LLM -> critic -> plain writer.
         state.signals = build_signal_registry(state)
-        fallbacks = build_horizon_fallbacks(state.signals, state.events)
+        fallbacks = build_horizon_fallbacks(state.signals, state.events, language=language)
         specialist_views = self._independent_specialist_views(state.experts)
         state.add_log("horizon_analyst")
-        state.autonomy = analyze_horizons(state.signals, state.events, fallbacks, state.data_health, specialist_views=specialist_views, memory=state.memory)
+        state.autonomy = analyze_horizons(state.signals, state.events, fallbacks, state.data_health, specialist_views=specialist_views, memory=state.memory, language=language)
         state.horizons = state.autonomy.get("horizons", fallbacks)
         state.add_log("v4_critic")
-        state.v4_critic = critique_horizons(state.autonomy, state.signals, state.events, state.data_health)
+        state.v4_critic = critique_horizons(state.autonomy, state.signals, state.events, state.data_health, language=language)
         state.add_log("plain_language_writer")
-        state.user_view = write_user_view(state.autonomy, state.signals, state.events, state.v4_critic)
+        state.user_view = write_user_view(state.autonomy, state.signals, state.events, state.v4_critic, language=language)
 
         # Save this decision only after the final horizons exist. Historical memory never changes hard thresholds.
         if source == "live" and current_price:
@@ -233,10 +234,10 @@ class BTCAgentOrchestrator:
             state.memory = prediction_journal.memory_context(limit=8)
 
         # Backward-compatible V2-style final_decision for API consumers, derived from V4 actions.
-        action_map = {"분할매수 검토": "매수", "피하기": "관망", "기다림": "관망"}
-        add_action = state.user_view.get("actions", {}).get("add", "기다림")
-        hold_action = state.user_view.get("actions", {}).get("hold", "유지")
-        final_action = "비중축소" if "줄이기" in hold_action else action_map.get(add_action, "관망")
+        action_map = {"분할매수 검토": "매수", "피하기": "관망", "기다림": "관망", "Consider staged buying": "매수", "Avoid adding": "관망", "Wait": "관망"}
+        add_action = state.user_view.get("actions", {}).get("add", "Wait" if language == "en" else "기다림")
+        hold_action = state.user_view.get("actions", {}).get("hold", "Hold" if language == "en" else "유지")
+        final_action = "비중축소" if ("줄이기" in hold_action or "reduc" in hold_action.lower()) else action_map.get(add_action, "관망")
         now_conf = float(state.horizons.get("NOW", {}).get("confidence", 0.55))
         state.final_decision = Decision(final_action, now_conf, state.user_view.get("headline", "V4 horizon decision"), state.user_view.get("why", []), state.user_view.get("watch", []), source="v4.1")
         state.draft_decision = state.final_decision
@@ -244,7 +245,7 @@ class BTCAgentOrchestrator:
         state.explanation = {
             "headline": state.user_view.get("headline"), "summary": state.user_view.get("summary"),
             "positives": state.user_view.get("why", []), "cautions": state.horizons.get("NOW", {}).get("risks", []),
-            "strategy": [f"기존 보유: {state.user_view.get('actions', {}).get('hold')}", f"추가 매수: {state.user_view.get('actions', {}).get('add')}", f"익절: {state.user_view.get('actions', {}).get('take_profit')}"],
+            "strategy": ([f"Existing position: {state.user_view.get('actions', {}).get('hold')}", f"Add exposure: {state.user_view.get('actions', {}).get('add')}", f"Take profit: {state.user_view.get('actions', {}).get('take_profit')}"] if language == "en" else [f"기존 보유: {state.user_view.get('actions', {}).get('hold')}", f"추가 매수: {state.user_view.get('actions', {}).get('add')}", f"익절: {state.user_view.get('actions', {}).get('take_profit')}"]),
             "recheck": state.user_view.get("watch", []), "source": state.user_view.get("source", "fallback"),
         }
         return state
