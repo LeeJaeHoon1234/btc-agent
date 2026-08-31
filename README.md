@@ -1,186 +1,136 @@
-# BTC Agent V4
+# BTC Agent V4.1
 
-BTC Agent V4 is a multi-horizon Bitcoin decision-support system designed around one principle:
+BTC Agent V4.1 is a multi-horizon Bitcoin decision-support system built around one principle:
 
 > **Complex inside, simple outside.**
 
-The backend can inspect many market, derivatives, macro, flow, sentiment, network and model signals, while the main UI answers only the questions a user actually needs:
+V4.1 keeps the V4 live/multi-horizon engine and improves two areas: **human readability** and **self-evaluation over time**.
 
-- What is happening **right now**?
-- What does **today** look like?
-- What is the view for **1 week / 1 month / 1 year**?
-- For an existing position, should I **hold, add, or consider taking profit**?
-- What would make the view change?
+## What changed from V4
 
-This is a research/decision-support project, not an automated trading system or a promise of returns.
+### 1. Readable live market context
 
-## What changed from V3.1
+- BTC/KRW remains browser-live through Upbit WebSocket.
+- BTC/USD reference price is fetched independently from Coinbase and displayed next to KRW.
+- Upbit `signed_change_rate` is explicitly labeled **change vs previous close**, not misleadingly shown as rolling 24h.
+- A true rolling 24h return is calculated separately from 60-minute candles.
+- “1 hour / 4 hours / from low / from high” are no longer naked numbers: the UI adds plain-language meaning.
+- Current price is shown inside the day low-to-high range.
+- 1H and 4H cards include sparklines.
+- Clicking the chart opens an enlarged 1H / 4H / 1D / 3D view with hover inspection and zoom controls.
 
-V3.1 exposed too much of the internal agent architecture on the main screen and its primary market model was daily-data oriented. V4 separates the system into different speeds and hides implementation detail from the default UI.
+### 2. Data sanity layer
 
-### Real-time / fast layer
+The fast layer now checks:
 
-- Browser-side Upbit WebSocket ticker for a genuinely moving BTC/KRW price.
-- Backend `/api/v1/live` snapshot cached for ~10 seconds.
-- Upbit 1-minute + 5-minute candles.
-- Recent trades and aggressive buy/sell balance.
-- Order-book imbalance and spread.
-- 5m / 15m / 1h / 4h / 24h price movement.
-- Rebound from the 24h low and distance from the 24h high.
-- VWAP gap, RSI, EMA, MACD, Bollinger position, ATR, realized volatility and volume anomaly metrics.
-- Event detector for fast shocks, flush/rebound, high rejection, volume spikes and leverage events.
+- positive/valid prices
+- high >= low
+- current price inside the reported day range
+- consistency of the computed range position
+- ticker vs latest 1-minute candle divergence
+- KRW and USD reference-price cross-check
 
-### Slow / structural layer
+If values are inconsistent, the UI shows a warning instead of silently presenting the number as trustworthy.
 
-The existing daily core remains available and was expanded with:
+### 3. Prediction Journal + Reflection Memory
 
-- MA20 / 50 / 60 / 100 / 111 / 200 / 350
-- EMA9 / 12 / 21 / 26 / 50 / 200
-- RSI14
-- MACD
-- Bollinger Bands
-- ATR
-- ADX / DI
-- Stochastic
-- OBV
-- volume ratio / volume z-score
-- multi-period returns
-- multi-period volatility
-- drawdowns
-- cycle proxies
-- existing 30-day LightGBM model as a **supporting** signal only
-- historical similarity retrieval
+V4.1 records the five horizon decisions and later evaluates them after their horizon matures:
 
-## Multi-horizon analysis
+| Horizon | Evaluation delay |
+|---|---:|
+| NOW | 4 hours |
+| TODAY | 24 hours |
+| 1W | 7 days |
+| 1M | 30 days |
+| 1Y | 365 days |
 
-V4 analyzes five horizons independently:
+Each journal item stores the original stance, confidence, entry price, regime and selected evidence IDs/domains. When the horizon matures, the system compares the original view with the realized price move and produces a structured lesson.
 
-| Horizon | Main question |
-|---|---|
-| NOW | What is happening in the market right now? |
-| TODAY | What kind of intraday session is this? |
-| 1W | What is the short-term direction? |
-| 1M | What does the medium-term setup look like? |
-| 1Y | Where are we in the broader structure/cycle? |
+When an LLM budget slot is available, a Reflect Agent may refine the lesson into `attention_up` / `attention_down` guidance. It is **not allowed** to change indicator thresholds, model weights or realized returns. If the LLM call is unavailable, the deterministic reflection remains valid.
 
-The same indicator is not forced to mean the same thing at every horizon. For example, an overbought 1-minute RSI during a sharp rebound is not automatically interpreted as a one-month market top.
+### 4. Memory is a weak prior, not an auto-trading optimizer
 
-## External evidence
+Reflection memory is passed to the V4.1 Horizon Analyst with strict rules:
 
-V4 is best-effort and never converts missing data into fake neutral evidence.
+- current market data always outranks memory
+- fewer than 3 historical samples are treated as insufficient evidence
+- no automatic RSI/score/position threshold mutation
+- performance by regime/domain is context, not a direct trading weight
 
-- **Derivatives:** Binance USD-M Futures primary; Bybit Linear fallback for funding/open interest and available positioning data.
-- **Macro:** FRED when configured, with the existing public fallback.
-- **News:** recent Bitcoin-focused retrieval through Google News RSS.
-- **US spot-BTC ETF flow:** public Farside snapshot (best-effort parser; marked unavailable if page structure changes).
-- **Sentiment:** Alternative.me Fear & Greed.
-- **Bitcoin network:** Blockchain.com stats + mempool.space fee data.
-- **Valuation on-chain metrics:** MVRV/SOPR/LTH-STH metrics are explicitly marked missing unless a real provider is added. V4 does not fabricate them.
+### 5. More independent specialists
 
-## AI autonomy: bounded, not fake autonomy
+Technical / derivatives / macro / news / historical specialists still inspect their own domains. The V4.1 Horizon Analyst receives their **summary/evidence/risks**, but not their final numeric score as an anchor. The old cross-domain research synthesis is retained for Advanced/backward compatibility and is deterministic in the V4.1 path, saving one LLM call.
 
-V4 deliberately separates facts from interpretation.
+## Main architecture
 
 ```text
-Upbit / derivatives / macro / news / flow / network
+Live market / derivatives / macro / news / flow / on-chain
                          │
                          ▼
               deterministic calculations
                          │
                          ▼
-                   signal registry
-              (facts + source + horizon)
+                data sanity checks
                          │
                          ▼
-       specialist LLMs + cross-domain synthesis
+                  signal registry
+                         │
+          ┌──────────────┴──────────────┐
+          ▼                             ▼
+ independent specialists        reflection memory
+          └──────────────┬──────────────┘
+                         ▼
+                 Horizon Analyst
+              NOW / TODAY / 1W / 1M / 1Y
                          │
                          ▼
-             V4 Horizon Analyst (LLM)
-             NOW / TODAY / 1W / 1M / 1Y
+                       Critic
                          │
                          ▼
-                 independent Critic
+               Plain-language Writer
                          │
                          ▼
-              Plain-language Writer
+                    React UI
+                         │
+                     time passes
                          │
                          ▼
-                   React dashboard
+                realized outcome
+                         │
+                         ▼
+               Reflection Engine
+                         │
+                         └──────► next analysis context
 ```
 
-Python owns exact numbers, timestamps, API status and indicator calculations. The V4 Horizon Analyst is allowed to decide **which evidence matters most**, reconcile conflicting signals and produce different conclusions by horizon. It may only cite IDs from the supplied signal registry; it cannot invent market values.
+## LLM budget
 
-The default LLM budget remains at most 8 calls per full analysis. With specialist LLMs enabled, the normal upper bound is:
+The existing `MAX_LLM_CALLS_PER_ANALYSIS=8` remains enough. A normal full run is typically:
 
 1. derivatives specialist
 2. macro specialist
 3. news specialist
 4. historical specialist
-5. cross-domain synthesis
-6. V4 horizon analyst
-7. independent critic
-8. plain-language writer
+5. horizon analyst
+6. critic
+7. plain-language writer
+8. optional Reflect Agent **only when matured predictions exist**
 
-If the LLM quota is unavailable, the entire pipeline still returns deterministic fallback horizons and a usable UI.
-
-## Frontend philosophy
-
-The main page no longer exposes Planner, research delta, entry score, expert score and evidence logs as the primary experience.
-
-The default page shows:
-
-1. genuinely live price and update age
-2. current market event
-3. simple hold / add / take-profit actions
-4. NOW / TODAY / 1W / 1M / 1Y tabs
-5. a few plain-language reasons
-6. what to watch next
-7. data-source freshness/status
-
-Raw metrics, old core scores, model metadata, research results, critic output and execution trace live under **Detailed analysis**.
+The old cross-domain synthesis is deterministic in V4.1. If quota/budget is unavailable, specialist/horizon/writer/reflection modules all have deterministic fallbacks.
 
 ## API
 
-### `GET /health`
-Service health and V4 capabilities.
+- `GET /health` — V4.1 capability state
+- `GET /api/v1/live` — cheap fast-layer snapshot, no LLM
+- `POST /api/v1/analyze` — full five-horizon analysis
+- `GET /api/v1/journal` — recent prediction/reflection history
+- `GET /api/v1/usage` — anonymous process-local quota counters
 
-### `GET /api/v1/live?market=KRW-BTC`
-Cheap fast-layer snapshot. No LLM call. Intended for frequent polling/fallback when the browser WebSocket is unavailable.
+## Persistence note
 
-### `POST /api/v1/analyze`
-Full multi-horizon analysis.
+The default prediction journal is a local JSON file under `data/runtime/`. On ephemeral hosting such as a default Render filesystem, that memory can disappear on restart/redeploy. For durable long-term learning, point `PREDICTION_JOURNAL_PATH` at a persistent disk or migrate the journal store to a database.
 
-Example request:
-
-```json
-{
-  "market": "KRW-BTC",
-  "history_years": 8,
-  "source": "live",
-  "question": "현재 BTC를 NOW, TODAY, 1W, 1M, 1Y 관점에서 분석하고 보유·추가매수·익절 대응을 판단해줘."
-}
-```
-
-### `GET /api/v1/usage`
-Anonymous process-local request/LLM quota counters.
-
-## Project structure
-
-```text
-backend/                 FastAPI API + fast/full caches
-frontend/                React/Vite dashboard
-src/
-  agents/v3/             retained specialist research layer
-  agents/v4/             horizon autonomy, critic, user writer
-  core/                   AgentState + V4 orchestrator
-  engines/v4/            signal registry + horizon fallback engine
-  tools/                  daily + intraday calculations
-  tools/research/         derivatives/macro/news/ETF/sentiment/network
-data/models/              existing saved LightGBM artifacts
-tests/                    API/core/V3 compatibility/V4 tests
-```
-
-## Local verification
+## Verification
 
 Backend:
 
@@ -188,10 +138,10 @@ Backend:
 python -m pytest -q
 ```
 
-Expected for this V4 package:
+Expected for V4.1:
 
 ```text
-20 passed
+23 passed
 ```
 
 Frontend:
@@ -202,26 +152,8 @@ npm install
 npm run build
 ```
 
-Then run the backend and frontend with the existing helper scripts or your normal commands.
+The generated package was syntax-checked with the TypeScript JSX parser. The build environment used here could not reach the npm registry, so the production Vite build must run locally or in GitHub Actions.
 
-## Deployment
+## Disclaimer
 
-The existing deployment topology is preserved:
-
-```text
-GitHub Pages (React)
-        │
-        ▼
-Render (FastAPI / Docker)
-        │
-        ├─ Upbit
-        ├─ derivatives providers
-        ├─ macro/news/flow/network sources
-        └─ OpenAI API (server-side key only)
-```
-
-Keep `OPENAI_API_KEY` only in Render. Do not commit it.
-
-If your existing repository already contains `data/models/btc_lgbm.joblib` and `btc_lgbm_metadata.json`, **keep those files** when overlaying the V4 update. The provided source package does not recreate a model that was not present in the supplied V3 archive.
-
-See `V4_ROLLOUT.md` for the exact upgrade steps.
+This is a research/decision-support project, not an automated trading system or a promise of returns.

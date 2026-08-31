@@ -43,9 +43,9 @@ def _fallback(experts: dict) -> dict:
     }
 
 
-def synthesize_research(question: str, plan: dict, experts: dict) -> dict:
+def synthesize_research(question: str, plan: dict, experts: dict, use_llm: bool = True) -> dict:
     fallback = _fallback(experts)
-    if not llm_available():
+    if not use_llm or not llm_available():
         return fallback
     instruction = """
 You are the senior BTC research synthesizer. Multiple specialist agents have already gathered evidence.

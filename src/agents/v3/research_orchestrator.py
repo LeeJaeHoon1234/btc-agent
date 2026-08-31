@@ -58,7 +58,7 @@ def _technical_expert(core_context: dict) -> dict:
     }
 
 
-def run_research(question: str, plan: dict, state, source: str = "live", raw_inputs: dict | None = None) -> tuple[dict, dict]:
+def run_research(question: str, plan: dict, state, source: str = "live", raw_inputs: dict | None = None, synthesis_llm: bool = True) -> tuple[dict, dict]:
     selected = set(plan.get("selected_skills", []))
     core = state.compact_context()
     demo = _demo_raw() if source == "demo" else {}
@@ -97,7 +97,7 @@ def run_research(question: str, plan: dict, state, source: str = "live", raw_inp
                     "risks": [str(exc)],
                 }
 
-    synthesis = synthesize_research(question, plan, experts)
+    synthesis = synthesize_research(question, plan, experts, use_llm=synthesis_llm)
     return experts, synthesis
 
 

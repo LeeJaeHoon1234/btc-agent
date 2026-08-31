@@ -44,11 +44,13 @@ class LiveSnapshotService:
             snapshot = fetch_live_market_snapshot(market)
         snapshot["events"] = detect_market_events(snapshot)
         top = snapshot["events"][0] if snapshot["events"] else None
-        m = snapshot.get("metrics", {})
+        friendly = snapshot.get("friendly", {})
+        validation = snapshot.get("validation", {})
         snapshot["fast_view"] = {
-            "headline": top.get("title") if top else ("단기 상승 중" if (m.get("return_1h_pct") or 0) > 0.5 else "단기 하락 중" if (m.get("return_1h_pct") or 0) < -0.5 else "큰 단기 이벤트 없음"),
+            "headline": top.get("title") if top else friendly.get("headline", "단기 흐름을 확인 중입니다."),
             "severity": top.get("severity", 0) if top else 0,
-            "requires_ai_refresh": bool(top and top.get("severity", 0) >= 4),
+            "requires_ai_refresh": bool((top and top.get("severity", 0) >= 4) or validation.get("status") == "warning"),
+            "data_warning": validation.get("status") == "warning",
         }
         with self._lock:
             self._cache[key] = (now, snapshot)

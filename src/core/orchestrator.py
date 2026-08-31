@@ -11,6 +11,7 @@ from src.agents.v3.planner_agent import DEFAULT_QUESTION
 from src.agents.v3.research_orchestrator import collect_evidence, run_research
 from src.agents.v4.autonomy_agent import analyze_horizons
 from src.agents.v4.critic_agent import critique_horizons
+from src.agents.v4.reflection_agent import refine_reflections
 from src.agents.v4.user_writer import write_user_view
 from src.core.schemas import Decision
 from src.core.state import AgentState
@@ -20,6 +21,7 @@ from src.engines.exit_engine import score_exit
 from src.engines.position_engine import apply_position_plan
 from src.engines.research_engine import apply_research_adjustment
 from src.engines.v4.horizon_engine import build_horizon_fallbacks, build_signal_registry
+from src.memory.prediction_journal import prediction_journal
 from src.tools.cycle_tool import analyze_cycle
 from src.tools.demo_data import make_demo_market_data
 from src.tools.event_detector import detect_market_events
@@ -59,7 +61,7 @@ class BTCAgentOrchestrator:
             live = make_demo_live_snapshot(daily_df)
             now = datetime.now(timezone.utc).isoformat()
             raw = {
-                "derivatives": {"available": True, "provider": "demo", "funding_rate": 0.00012, "open_interest": 81234.0, "open_interest_change_24h_pct": -2.7, "global_long_short_ratio": 1.25, "top_trader_position_ratio": 1.42, "taker_buy_sell_ratio": 1.08, "basis_rate": 0.0004, "fetched_at": now},
+                "derivatives": {"available": True, "provider": "demo", "funding_rate": 0.00012, "open_interest": 81234.0, "open_interest_change_24h_pct": 8.2, "global_long_short_ratio": 1.25, "top_trader_position_ratio": 1.42, "taker_buy_sell_ratio": 1.08, "basis_rate": 0.0004, "fetched_at": now},
                 "macro": {"available": True, "provider": "demo", "dollar_index": 99.2, "dollar_change_window_pct": -0.6, "us10y_yield": 3.91, "us10y_change_window_pct": -1.4, "fetched_at": now},
                 "news": {"available": True, "provider": "demo", "documents": [{"title": "Bitcoin rebounds after intraday flush as spot demand returns", "url": "https://example.com/demo-1", "source": "Demo News", "published_at": now, "text": "Bitcoin rebounds after intraday flush as spot demand returns"}], "errors": [], "fetched_at": now},
                 "flow": {"available": True, "provider": "demo", "latest_total_musd": 310.0, "five_session_total_musd": 760.0, "latest_date_label": "demo", "fetched_at": now, "errors": []},
@@ -88,6 +90,22 @@ class BTCAgentOrchestrator:
                 except Exception as exc:
                     results[name] = {"available": False, "provider": name, "errors": [f"{type(exc).__name__}: {exc}"], "fetched_at": datetime.now(timezone.utc).isoformat()}
         return results.pop("live", {"available": False, "errors": ["live snapshot missing"]}), results
+
+    @staticmethod
+    def _independent_specialist_views(experts: dict) -> dict:
+        """Remove final-score anchoring and expose only each domain's own evidence."""
+        out = {}
+        for name, result in (experts or {}).items():
+            if not isinstance(result, dict):
+                continue
+            out[name] = {
+                "available": bool(result.get("available", True)),
+                "summary": result.get("summary"),
+                "confidence": result.get("confidence"),
+                "evidence": list(result.get("evidence", []))[:6],
+                "risks": list(result.get("risks", []))[:4],
+            }
+        return out
 
     def run(self, market_df=None, question: str | None = None, source: str = "live") -> AgentState:
         state = AgentState()
@@ -152,6 +170,7 @@ class BTCAgentOrchestrator:
 
         state.data_health = {
             "price": self._health_item(bool(state.live.get("available")), state.live.get("fetched_at"), state.live.get("provider"), "tick in browser / ~10s REST snapshot", state.live.get("errors")),
+            "usd_reference": self._health_item(bool((state.live.get("ticker") or {}).get("price_usd")), (state.live.get("ticker") or {}).get("usd_fetched_at"), (state.live.get("ticker") or {}).get("usd_provider"), "~10s REST snapshot", state.live.get("errors")),
             "intraday": self._health_item(bool(state.live.get("metrics")), state.live.get("fetched_at"), "Upbit 5m candles + trades + orderbook", "~10s snapshot", state.live.get("errors")),
             "derivatives": self._health_item(bool(raw.get("derivatives", {}).get("available")), raw.get("derivatives", {}).get("fetched_at"), raw.get("derivatives", {}).get("provider"), "minutes", raw.get("derivatives", {}).get("errors")),
             "macro": self._health_item(bool(raw.get("macro", {}).get("available")), raw.get("macro", {}).get("fetched_at"), raw.get("macro", {}).get("provider"), "hours/daily", raw.get("macro", {}).get("errors")),
@@ -163,9 +182,9 @@ class BTCAgentOrchestrator:
         }
 
         # Keep V3 specialist research in Advanced, but routing itself is deterministic in V4 to save a call.
-        state.plan = {"objective": state.question, "selected_skills": ["technical", "derivatives", "macro", "news", "historical", "risk"], "reason": "V4 default analysis always inspects broad cross-domain evidence.", "source": "v4_deterministic"}
+        state.plan = {"objective": state.question, "selected_skills": ["technical", "derivatives", "macro", "news", "historical", "risk"], "reason": "V4.1 inspects broad cross-domain evidence while keeping specialist inputs independent.", "source": "v4.1_deterministic"}
         state.add_log("specialist_research")
-        state.experts, state.research = run_research(state.question, state.plan, state, source=fetch_source, raw_inputs=raw)
+        state.experts, state.research = run_research(state.question, state.plan, state, source=fetch_source, raw_inputs=raw, synthesis_llm=False)
         state.evidence = collect_evidence(state.experts)
         state.research_adjustment = apply_research_adjustment(state.entry, state.exit, state.research)
         state.risk = run_risk_agent(state)
@@ -174,16 +193,44 @@ class BTCAgentOrchestrator:
         state.events = detect_market_events(state.live, deriv_raw)
         state.add_log("event_detector")
 
-        # V4 autonomy: facts -> candidate signals -> horizon-aware LLM -> independent critic -> plain writer.
+        # V4.1 self-evaluation: resolve matured predictions before making the next decision.
+        state.reflection = {"resolved_now": [], "journaled_ids": []}
+        current_price = (state.live.get("ticker") or {}).get("price")
+        if source == "live" and current_price:
+            state.add_log("reflection_resolver")
+            state.reflection["resolved_now"] = prediction_journal.resolve_matured(current_price=float(current_price))
+            if state.reflection["resolved_now"]:
+                state.add_log("reflection_agent")
+                refinements = refine_reflections(state.reflection["resolved_now"])
+                state.reflection["llm_refinements"] = refinements
+                prediction_journal.apply_refinements(refinements)
+            state.memory = prediction_journal.memory_context(limit=8)
+        else:
+            state.memory = {"recent_lessons": [], "performance_matrix": {}, "resolved_count": 0, "pending_count": 0, "persistence": "disabled_for_demo"}
+
+        # V4.1 autonomy: facts -> independent specialists -> horizon-aware LLM -> critic -> plain writer.
         state.signals = build_signal_registry(state)
         fallbacks = build_horizon_fallbacks(state.signals, state.events)
+        specialist_views = self._independent_specialist_views(state.experts)
         state.add_log("horizon_analyst")
-        state.autonomy = analyze_horizons(state.signals, state.events, fallbacks, state.data_health, state.research)
+        state.autonomy = analyze_horizons(state.signals, state.events, fallbacks, state.data_health, specialist_views=specialist_views, memory=state.memory)
         state.horizons = state.autonomy.get("horizons", fallbacks)
         state.add_log("v4_critic")
         state.v4_critic = critique_horizons(state.autonomy, state.signals, state.events, state.data_health)
         state.add_log("plain_language_writer")
         state.user_view = write_user_view(state.autonomy, state.signals, state.events, state.v4_critic)
+
+        # Save this decision only after the final horizons exist. Historical memory never changes hard thresholds.
+        if source == "live" and current_price:
+            state.add_log("prediction_journal")
+            state.reflection["journaled_ids"] = prediction_journal.add_prediction(
+                price=float(current_price),
+                horizons=state.horizons,
+                signals=state.signals,
+                regime=str(state.regime.get("regime") or "unknown"),
+                source=source,
+            )
+            state.memory = prediction_journal.memory_context(limit=8)
 
         # Backward-compatible V2-style final_decision for API consumers, derived from V4 actions.
         action_map = {"분할매수 검토": "매수", "피하기": "관망", "기다림": "관망"}
@@ -191,7 +238,7 @@ class BTCAgentOrchestrator:
         hold_action = state.user_view.get("actions", {}).get("hold", "유지")
         final_action = "비중축소" if "줄이기" in hold_action else action_map.get(add_action, "관망")
         now_conf = float(state.horizons.get("NOW", {}).get("confidence", 0.55))
-        state.final_decision = Decision(final_action, now_conf, state.user_view.get("headline", "V4 horizon decision"), state.user_view.get("why", []), state.user_view.get("watch", []), source="v4")
+        state.final_decision = Decision(final_action, now_conf, state.user_view.get("headline", "V4 horizon decision"), state.user_view.get("why", []), state.user_view.get("watch", []), source="v4.1")
         state.draft_decision = state.final_decision
         state.final_decision = apply_position_plan(state.final_decision, float(state.entry.get("score", 50)), float(state.exit.get("score", 0)))
         state.explanation = {

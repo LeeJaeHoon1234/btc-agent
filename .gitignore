@@ -13,3 +13,6 @@ data/models/*
 !data/models/README.md
 !data/models/btc_lgbm.joblib
 !data/models/btc_lgbm_metadata.json
+
+# Runtime self-evaluation journal (do not commit live predictions).
+data/runtime/

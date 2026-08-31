@@ -46,6 +46,10 @@ class AgentState:
     v4_critic: dict[str, Any] = field(default_factory=dict)
     user_view: dict[str, Any] = field(default_factory=dict)
 
+    # V4.1 self-evaluation memory.
+    memory: dict[str, Any] = field(default_factory=dict)
+    reflection: dict[str, Any] = field(default_factory=dict)
+
     iteration: int = 0
     logs: list[str] = field(default_factory=list)
 
@@ -73,5 +77,7 @@ class AgentState:
             "data_health": self.data_health,
             "research": self.research,
             "research_adjustment": self.research_adjustment,
+            "memory": self.memory,
+            "reflection": self.reflection,
             "gate": self.gate.to_dict() if self.gate else None,
         }

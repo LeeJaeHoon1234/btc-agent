@@ -32,18 +32,18 @@ def detect_market_events(live: dict, derivatives: dict | None = None) -> list[di
     if r1h is not None and abs(r1h) >= 3.0:
         add("hour_shock", "shock", min(5, 3 + int(abs(r1h) // 3)), "1시간 급등" if r1h > 0 else "1시간 급락", [f"1시간 {r1h:+.2f}%"])
     if rebound is not None and rebound >= 3.0 and ((r1h or 0) > 0.7 or (r4h or 0) > 1.0):
-        facts = [f"24시간 저점 대비 {rebound:+.2f}%"]
+        facts = [f"일중 저점 대비 {rebound:+.2f}%"]
         if r1h is not None: facts.append(f"최근 1시간 {r1h:+.2f}%")
         add("flush_rebound", "rebound", 4 if rebound >= 5 else 3, "급락 뒤 강한 반등", facts)
     if pullback is not None and pullback <= -3.0 and ((r1h or 0) < -0.7 or (r4h or 0) < -1.0):
-        add("high_rejection", "rejection", 3, "고점에서 빠르게 밀림", [f"24시간 고점 대비 {pullback:.2f}%"])
+        add("high_rejection", "rejection", 3, "고점에서 빠르게 밀림", [f"일중 고점 대비 {pullback:.2f}%"])
     if (vz is not None and vz >= 2.0) or (vr is not None and vr >= 2.0):
         facts = []
         if vz is not None: facts.append(f"거래량 z-score {vz:.1f}")
         if vr is not None: facts.append(f"최근 거래량 {vr:.1f}배")
         add("volume_spike", "volume", 3, "거래량 급증", facts)
     if range_pos is not None and range_pos >= 0.92 and (r1h or 0) > 0:
-        add("near_high", "breakout", 2, "24시간 고점권", [f"24시간 가격 범위 상단 {range_pos * 100:.0f}% 위치"])
+        add("near_high", "breakout", 2, "일중 고점권", [f"오늘 가격 범위 상단 {range_pos * 100:.0f}% 위치"])
 
     d = derivatives or {}
     if d.get("available"):

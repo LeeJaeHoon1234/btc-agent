@@ -17,9 +17,10 @@ from src.agents.llm_client import llm_available
 from src.agents.v3.planner_agent import DEFAULT_QUESTION
 from src.core.v3.skill_registry import skill_registry
 from src.core.v3.usage_guard import usage_guard
+from src.memory.prediction_journal import prediction_journal
 
 logger = logging.getLogger(__name__)
-VERSION = "4.0.0"
+VERSION = "4.1.0"
 
 
 class AnalysisRequest(BaseModel):
@@ -38,6 +39,7 @@ class HealthResponse(BaseModel):
     skill_count: int
     cost_guard_enabled: bool
     live_layer: bool
+    reflection_memory: bool
 
 
 def _cors_origins() -> list[str]:
@@ -54,8 +56,8 @@ def _client_key(request: Request) -> str:
 
 
 app = FastAPI(
-    title="BTC Agent V4 API",
-    description="Multi-speed BTC decision-support system: live microstructure, multi-horizon analysis, autonomous evidence prioritization, critic, and plain-language UI.",
+    title="BTC Agent V4.1 API",
+    description="Multi-speed BTC decision-support system with readable live context, data sanity checks, multi-horizon analysis, and reflection memory.",
     version=VERSION,
 )
 app.add_middleware(CORSMiddleware, allow_origins=_cors_origins(), allow_credentials=False, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Accept"])
@@ -63,12 +65,12 @@ app.add_middleware(CORSMiddleware, allow_origins=_cors_origins(), allow_credenti
 
 @app.get("/", include_in_schema=False)
 def root() -> dict:
-    return {"service": "BTC Agent V4 API", "version": VERSION, "docs": "/docs", "health": "/health", "live": "/api/v1/live", "usage": "/api/v1/usage"}
+    return {"service": "BTC Agent V4.1 API", "version": VERSION, "docs": "/docs", "health": "/health", "live": "/api/v1/live", "usage": "/api/v1/usage", "journal": "/api/v1/journal"}
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(status="ok", version=VERSION, model_available=MODEL_PATH.exists(), llm_available=llm_available(), default_market=MARKET, skill_count=len(skill_registry.names()), cost_guard_enabled=usage_guard.enabled, live_layer=True)
+    return HealthResponse(status="ok", version=VERSION, model_available=MODEL_PATH.exists(), llm_available=llm_available(), default_market=MARKET, skill_count=len(skill_registry.names()), cost_guard_enabled=usage_guard.enabled, live_layer=True, reflection_memory=True)
 
 
 @app.get("/api/v1/skills")
@@ -79,6 +81,12 @@ def skills() -> dict:
 @app.get("/api/v1/usage")
 def usage(request: Request) -> dict:
     return usage_guard.status(_client_key(request))
+
+
+@app.get("/api/v1/journal")
+def journal() -> dict:
+    """Recent self-evaluation history. No portfolio/account data is stored."""
+    return {"meta": {"generated_at": datetime.now(timezone.utc).isoformat(), "version": VERSION}, "journal": _clean(prediction_journal.snapshot())}
 
 
 @app.get("/api/v1/live")

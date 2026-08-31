@@ -78,6 +78,8 @@ def serialize_state(state, series_points: int = 120) -> dict[str, Any]:
         "autonomy": state.autonomy,
         "v4_critic": state.v4_critic,
         "user_view": state.user_view,
+        "memory": state.memory,
+        "reflection": state.reflection,
         "critiques": [item.to_dict() for item in state.critiques],
         "iteration": state.iteration,
         "logs": state.logs,
