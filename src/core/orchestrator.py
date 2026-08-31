@@ -9,11 +9,14 @@ from src.agents.risk_agent import run_risk_agent
 from src.agents.technical_agent import run_technical_agent
 from src.agents.v3.planner_agent import DEFAULT_QUESTION
 from src.agents.v3.research_orchestrator import collect_evidence, run_research
-from src.agents.v4.autonomy_agent import analyze_horizons
-from src.agents.v4.critic_agent import critique_horizons
 from src.agents.v4.reflection_agent import refine_reflections
-from src.agents.v4.user_writer import write_user_view
+from src.agents.v5.council_agent import build_agent_council
+from src.agents.v5.horizon_agent import analyze_horizons_v5
+from src.agents.v5.critic_agent import critique_v5
+from src.agents.v5.user_writer import write_user_view_v5
+from src.agents.v5.meta_decision_agent import run_meta_decision
 from src.core.schemas import Decision
+from src.core.v5.fact_registry import split_facts_and_priors
 from src.core.state import AgentState
 from src.engines.confidence_gate import evaluate_confidence_gate
 from src.engines.entry_engine import score_entry
@@ -21,6 +24,11 @@ from src.engines.exit_engine import score_exit
 from src.engines.position_engine import apply_position_plan
 from src.engines.research_engine import apply_research_adjustment
 from src.engines.v4.horizon_engine import build_horizon_fallbacks, build_signal_registry
+from src.engines.v5.forecast_engine import build_forecast_distributions
+from src.engines.v5.regime_engine import detect_market_state
+from src.engines.v5.decision_engine import build_base_decision
+from src.engines.v5.risk_governor import apply_risk_governor
+from src.engines.v5.portfolio_engine import build_portfolio_plan
 from src.memory.prediction_journal import prediction_journal
 from src.tools.cycle_tool import analyze_cycle
 from src.tools.demo_data import make_demo_market_data
@@ -100,6 +108,11 @@ class BTCAgentOrchestrator:
                 continue
             out[name] = {
                 "available": bool(result.get("available", True)),
+                # This is the specialist's own domain score/regime, not the final research score.
+                # Keeping it lets the council preserve independent expert judgments without
+                # re-deriving their stance from hand-written signal priors.
+                "score": result.get("score"),
+                "regime": result.get("regime"),
                 "summary": result.get("summary"),
                 "confidence": result.get("confidence"),
                 "evidence": list(result.get("evidence", []))[:6],
@@ -107,7 +120,7 @@ class BTCAgentOrchestrator:
             }
         return out
 
-    def run(self, market_df=None, question: str | None = None, source: str = "live", language: str = "ko") -> AgentState:
+    def run(self, market_df=None, question: str | None = None, source: str = "live", language: str = "ko", current_exposure_pct: float | None = None) -> AgentState:
         language = "en" if language == "en" else "ko"
         state = AgentState()
         state.question = (question or DEFAULT_QUESTION).strip()
@@ -182,8 +195,8 @@ class BTCAgentOrchestrator:
             "ml_30d": self._health_item(bool(state.ml.get("available")), state.latest.get("date"), "saved LightGBM", "daily", []),
         }
 
-        # Keep V3 specialist research in Advanced, but routing itself is deterministic in V4 to save a call.
-        state.plan = {"objective": state.question, "selected_skills": ["technical", "derivatives", "macro", "news", "historical", "risk"], "reason": "V4.1 inspects broad cross-domain evidence while keeping specialist inputs independent.", "source": "v4.1_deterministic"}
+        # Keep the existing specialist research, but routing itself is deterministic to save an LLM call.
+        state.plan = {"objective": state.question, "selected_skills": ["technical", "derivatives", "macro", "news", "historical", "risk"], "reason": "V5 inspects broad cross-domain evidence while keeping specialist inputs independent.", "source": "v5_deterministic"}
         state.add_log("specialist_research")
         state.experts, state.research = run_research(state.question, state.plan, state, source=fetch_source, raw_inputs=raw, synthesis_llm=False)
         state.evidence = collect_evidence(state.experts)
@@ -194,7 +207,7 @@ class BTCAgentOrchestrator:
         state.events = detect_market_events(state.live, deriv_raw)
         state.add_log("event_detector")
 
-        # V4.1 self-evaluation: resolve matured predictions before making the next decision.
+        # V5 self-evaluation: resolve matured predictions before making the next decision.
         state.reflection = {"resolved_now": [], "journaled_ids": []}
         current_price = (state.live.get("ticker") or {}).get("price")
         if source == "live" and current_price:
@@ -208,18 +221,62 @@ class BTCAgentOrchestrator:
             state.memory = prediction_journal.memory_context(limit=8)
         else:
             state.memory = {"recent_lessons": [], "performance_matrix": {}, "resolved_count": 0, "pending_count": 0, "persistence": "disabled_for_demo"}
+            state.track_record = {"resolved_total": 0, "pending_total": 0, "by_horizon": {}, "note": "Demo decisions are not added to the live track record."}
 
-        # V4.1 autonomy: facts -> independent specialists -> horizon-aware LLM -> critic -> plain writer.
+        # V5 autonomy: raw facts -> forecast distributions -> council -> meta decision -> risk governor -> plain writer.
         state.signals = build_signal_registry(state)
-        fallbacks = build_horizon_fallbacks(state.signals, state.events, language=language)
+        state.facts, state.deterministic_priors = split_facts_and_priors(state.signals)
+        state.add_log("v5_fact_prior_split")
+        state.forecasts = build_forecast_distributions(df, state.live)
+        state.add_log("v5_forecast_distributions")
+        state.market_state = detect_market_state(
+            latest=state.latest, live=state.live, derivatives=deriv_raw, base_regime=state.regime
+        )
+        state.add_log("v5_two_speed_regime")
         specialist_views = self._independent_specialist_views(state.experts)
+        state.council = build_agent_council(
+            facts=state.facts, priors=state.deterministic_priors, forecasts=state.forecasts,
+            market_state=state.market_state, data_health=state.data_health, events=state.events,
+            specialist_views=specialist_views,
+        )
+        state.add_log("v5_agent_council")
+        base_decision = build_base_decision(forecasts=state.forecasts, council=state.council, market_state=state.market_state)
+        state.meta_decision = run_meta_decision(
+            base_decision=base_decision, facts=state.facts, forecasts=state.forecasts, council=state.council,
+            market_state=state.market_state, events=state.events, language=language,
+        )
+        state.add_log("v5_meta_decision")
+        state.risk_governor = apply_risk_governor(
+            proposed_exposure_pct=float(state.meta_decision.get("desired_exposure_pct", base_decision["desired_exposure_pct"])),
+            forecasts=state.forecasts, market_state=state.market_state, data_health=state.data_health,
+            events=state.events, council=state.council,
+        )
+        state.add_log("v5_risk_governor")
+        state.portfolio = build_portfolio_plan(
+            current_price=current_price, current_exposure_pct=current_exposure_pct,
+            risk_governor=state.risk_governor, forecasts=state.forecasts, meta_decision=state.meta_decision,
+        )
+        state.add_log("v5_portfolio_plan")
+        state.add_log("v5_horizon_analyst")
         state.add_log("horizon_analyst")
-        state.autonomy = analyze_horizons(state.signals, state.events, fallbacks, state.data_health, specialist_views=specialist_views, memory=state.memory, language=language)
-        state.horizons = state.autonomy.get("horizons", fallbacks)
+        state.autonomy = analyze_horizons_v5(
+            facts=state.facts, forecasts=state.forecasts, market_state=state.market_state, events=state.events,
+            data_health=state.data_health, council=state.council, memory=state.memory, language=language,
+        )
+        state.horizons = state.autonomy.get("horizons", {})
+        state.add_log("v5_critic")
         state.add_log("v4_critic")
-        state.v4_critic = critique_horizons(state.autonomy, state.signals, state.events, state.data_health, language=language)
+        state.v4_critic = critique_v5(
+            analysis=state.autonomy, facts=state.facts, forecasts=state.forecasts, events=state.events,
+            data_health=state.data_health, council=state.council,
+        )
+        state.add_log("v5_plain_language_writer")
+        state.user_view = write_user_view_v5(
+            horizons=state.horizons, forecasts=state.forecasts, portfolio=state.portfolio,
+            risk_governor=state.risk_governor, meta_decision=state.meta_decision, market_state=state.market_state,
+            council=state.council, critic=state.v4_critic, language=language,
+        )
         state.add_log("plain_language_writer")
-        state.user_view = write_user_view(state.autonomy, state.signals, state.events, state.v4_critic, language=language)
 
         # Save this decision only after the final horizons exist. Historical memory never changes hard thresholds.
         if source == "live" and current_price:
@@ -229,19 +286,18 @@ class BTCAgentOrchestrator:
                 horizons=state.horizons,
                 signals=state.signals,
                 regime=str(state.regime.get("regime") or "unknown"),
-                source=source,
+                source=source, forecasts=state.forecasts, market_state=state.market_state,
+                portfolio=state.portfolio, model_version="5.0.0",
             )
             state.memory = prediction_journal.memory_context(limit=8)
+            state.track_record = prediction_journal.performance_summary()
 
         # Backward-compatible V2-style final_decision for API consumers, derived from V4 actions.
-        action_map = {"분할매수 검토": "매수", "피하기": "관망", "기다림": "관망", "Consider staged buying": "매수", "Avoid adding": "관망", "Wait": "관망"}
-        add_action = state.user_view.get("actions", {}).get("add", "Wait" if language == "en" else "기다림")
-        hold_action = state.user_view.get("actions", {}).get("hold", "Hold" if language == "en" else "유지")
-        final_action = "비중축소" if ("줄이기" in hold_action or "reduc" in hold_action.lower()) else action_map.get(add_action, "관망")
+        portfolio_action = str(state.portfolio.get("action") or "HOLD")
+        final_action = {"INCREASE": "매수", "REDUCE": "비중축소", "HOLD": "관망", "AVOID": "관망"}.get(portfolio_action, "관망")
         now_conf = float(state.horizons.get("NOW", {}).get("confidence", 0.55))
-        state.final_decision = Decision(final_action, now_conf, state.user_view.get("headline", "V4 horizon decision"), state.user_view.get("why", []), state.user_view.get("watch", []), source="v4.1")
+        state.final_decision = Decision(final_action, now_conf, state.user_view.get("headline", "V5 horizon decision"), state.user_view.get("why", []), state.user_view.get("watch", []), action_size_pct=float(state.portfolio.get("recommended_change_pct") or 0.0), source="v5")
         state.draft_decision = state.final_decision
-        state.final_decision = apply_position_plan(state.final_decision, float(state.entry.get("score", 50)), float(state.exit.get("score", 0)))
         state.explanation = {
             "headline": state.user_view.get("headline"), "summary": state.user_view.get("summary"),
             "positives": state.user_view.get("why", []), "cautions": state.horizons.get("NOW", {}).get("risks", []),

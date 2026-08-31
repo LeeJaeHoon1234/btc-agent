@@ -70,7 +70,7 @@ class PredictionJournal:
         self.path = Path(path or os.getenv("PREDICTION_JOURNAL_PATH", str(default)))
 
     def _empty(self) -> dict:
-        return {"version": 1, "records": [], "reflections": []}
+        return {"version": 2, "records": [], "reflections": []}
 
     def _load_unlocked(self) -> dict:
         if not self.path.exists():
@@ -93,11 +93,14 @@ class PredictionJournal:
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(self.path)
 
-    def add_prediction(self, *, price: float, horizons: dict, signals: list[dict], regime: str | None, source: str = "live", now: datetime | None = None) -> list[str]:
+    def add_prediction(self, *, price: float, horizons: dict, signals: list[dict], regime: str | None, source: str = "live", now: datetime | None = None, forecasts: dict | None = None, market_state: dict | None = None, portfolio: dict | None = None, model_version: str = "5.0.0") -> list[str]:
         if not price or price <= 0:
             return []
         now = now or _utcnow()
         signal_map = {str(x.get("id")): x for x in signals}
+        forecasts = forecasts or {}
+        market_state = market_state or {}
+        portfolio = portfolio or {}
         created: list[str] = []
         with _LOCK:
             data = self._load_unlocked()
@@ -140,6 +143,13 @@ class PredictionJournal:
                     "headline": view.get("headline"),
                     "price": float(price),
                     "regime": regime or "unknown",
+                    "market_state": market_state.get("regime"),
+                    "model_version": model_version,
+                    "forecast": {k: forecasts.get(horizon, {}).get(k) for k in [
+                        "expected_return_pct", "median_return_pct", "q10_return_pct", "q90_return_pct",
+                        "probability_up_pct", "confidence", "sample_count", "effective_sample_size", "method"
+                    ] if forecasts.get(horizon, {}).get(k) is not None},
+                    "portfolio": {k: portfolio.get(k) for k in ["target_exposure_pct", "recommended_change_pct", "next_exposure_pct"] if portfolio.get(k) is not None},
                     "evidence": evidence,
                 })
                 created.append(record_id)
@@ -167,6 +177,16 @@ class PredictionJournal:
                 expected = _direction(record.get("stance"))
                 outcome = _outcome_direction(ret, horizon)
                 grade = _grade(expected, outcome)
+                forecast = record.get("forecast") or {}
+                p_up = forecast.get("probability_up_pct")
+                expected_ret = forecast.get("expected_return_pct")
+                q10 = forecast.get("q10_return_pct"); q90 = forecast.get("q90_return_pct")
+                brier = None
+                if p_up is not None:
+                    p = max(0.0, min(1.0, float(p_up) / 100.0))
+                    brier = (p - (1.0 if ret > 0 else 0.0)) ** 2
+                abs_error = None if expected_ret is None else abs(ret - float(expected_ret))
+                interval_hit = None if q10 is None or q90 is None else float(q10) <= ret <= float(q90)
                 domains = sorted({str(x.get("domain")) for x in record.get("evidence", []) if x.get("domain")})
                 if grade == "aligned":
                     lesson = f"{horizon} 판단은 실제 {ret:+.1f}% 움직임과 방향이 맞았습니다. 당시 선택한 근거는 참고하되 현재 데이터가 바뀌면 그대로 반복하지 않습니다."
@@ -191,12 +211,22 @@ class PredictionJournal:
                     "original_stance": record.get("stance"),
                     "original_confidence": record.get("confidence"),
                     "headline": record.get("headline"),
+                    "forecast": forecast,
+                    "forecast_metrics": {
+                        "brier": None if brier is None else round(brier, 5),
+                        "absolute_return_error_pct": None if abs_error is None else round(abs_error, 4),
+                        "interval_80_hit": interval_hit,
+                    },
                     "lesson": lesson,
                     "attention_up": [],
                     "attention_down": [],
                     "reflection_source": "structured",
                 }
-                record.update({"status": "resolved", "resolved_at": now.isoformat(), "outcome_price": float(current_price), "return_pct": ret, "grade": grade})
+                record.update({
+                    "status": "resolved", "resolved_at": now.isoformat(), "outcome_price": float(current_price),
+                    "return_pct": ret, "grade": grade,
+                    "forecast_metrics": {"brier": brier, "absolute_return_error_pct": abs_error, "interval_80_hit": interval_hit},
+                })
                 data["reflections"].append(reflection)
                 resolved.append(reflection)
             self._save_unlocked(data)
@@ -258,6 +288,36 @@ class PredictionJournal:
             "persistence": "local_json",
         }
 
+    def performance_summary(self) -> dict:
+        with _LOCK:
+            data = self._load_unlocked()
+        reflections = list(data.get("reflections", []))
+        by_horizon: dict[str, dict] = {}
+        for horizon in HORIZON_HOURS:
+            items = [x for x in reflections if x.get("horizon") == horizon]
+            if not items:
+                by_horizon[horizon] = {"resolved": 0}
+                continue
+            aligned = sum(1 for x in items if x.get("grade") == "aligned")
+            metrics = [x.get("forecast_metrics") or {} for x in items]
+            briers = [float(m["brier"]) for m in metrics if m.get("brier") is not None]
+            errors = [float(m["absolute_return_error_pct"]) for m in metrics if m.get("absolute_return_error_pct") is not None]
+            interval = [bool(m["interval_80_hit"]) for m in metrics if m.get("interval_80_hit") is not None]
+            by_horizon[horizon] = {
+                "resolved": len(items),
+                "stance_alignment_rate": round(aligned / len(items), 4),
+                "mean_brier": None if not briers else round(sum(briers) / len(briers), 5),
+                "mean_absolute_return_error_pct": None if not errors else round(sum(errors) / len(errors), 4),
+                "interval_80_coverage": None if not interval else round(sum(interval) / len(interval), 4),
+            }
+        total = len(reflections)
+        return {
+            "resolved_total": total,
+            "pending_total": sum(1 for x in data.get("records", []) if x.get("status") == "pending"),
+            "by_horizon": by_horizon,
+            "note": "Live, timestamped decisions only; demo analyses are not included.",
+        }
+
     def snapshot(self, record_limit: int = 30, reflection_limit: int = 30) -> dict:
         with _LOCK:
             data = self._load_unlocked()
@@ -265,6 +325,7 @@ class PredictionJournal:
             "records": list(data.get("records", []))[-record_limit:][::-1],
             "reflections": list(data.get("reflections", []))[-reflection_limit:][::-1],
             "memory": self.memory_context(limit=8),
+            "performance": self.performance_summary(),
         }
 
 

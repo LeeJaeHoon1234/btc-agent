@@ -20,7 +20,7 @@ from src.core.v3.usage_guard import usage_guard
 from src.memory.prediction_journal import prediction_journal
 
 logger = logging.getLogger(__name__)
-VERSION = "4.1.1"
+VERSION = "5.0.0"
 
 
 class AnalysisRequest(BaseModel):
@@ -29,6 +29,7 @@ class AnalysisRequest(BaseModel):
     source: Literal["live", "demo"] = "live"
     question: str = Field(default=DEFAULT_QUESTION, min_length=3, max_length=600)
     language: Literal["ko", "en"] = "ko"
+    current_exposure_pct: float | None = Field(default=None, ge=0, le=100)
 
 
 class HealthResponse(BaseModel):
@@ -106,7 +107,7 @@ def analyze(payload: AnalysisRequest, request: Request) -> dict:
     if not rate.allowed:
         raise HTTPException(status_code=429, detail="Public analysis rate limit reached. Try again later.", headers={"Retry-After": str(rate.retry_after_seconds or 60)})
     try:
-        state, cached, llm_usage = analysis_service.analyze(market=payload.market, history_years=payload.history_years, source=payload.source, question=payload.question, client_key=client_key, language=payload.language)
+        state, cached, llm_usage = analysis_service.analyze(market=payload.market, history_years=payload.history_years, source=payload.source, question=payload.question, client_key=client_key, language=payload.language, current_exposure_pct=payload.current_exposure_pct)
     except (requests.RequestException, ConnectionError, TimeoutError) as exc:
         raise HTTPException(status_code=502, detail="시장 데이터 제공처에 연결하지 못했습니다. 잠시 뒤 다시 시도하거나 source='demo'로 확인하세요.") from exc
     except (ValueError, IndexError, KeyError) as exc:

@@ -46,6 +46,17 @@ class AgentState:
     v4_critic: dict[str, Any] = field(default_factory=dict)
     user_view: dict[str, Any] = field(default_factory=dict)
 
+    # V5 separates facts from deterministic priors and adds probabilistic forecasts.
+    facts: list[dict[str, Any]] = field(default_factory=list)
+    deterministic_priors: dict[str, Any] = field(default_factory=dict)
+    forecasts: dict[str, Any] = field(default_factory=dict)
+    market_state: dict[str, Any] = field(default_factory=dict)
+    council: dict[str, Any] = field(default_factory=dict)
+    meta_decision: dict[str, Any] = field(default_factory=dict)
+    risk_governor: dict[str, Any] = field(default_factory=dict)
+    portfolio: dict[str, Any] = field(default_factory=dict)
+    track_record: dict[str, Any] = field(default_factory=dict)
+
     # V4.1 self-evaluation memory.
     memory: dict[str, Any] = field(default_factory=dict)
     reflection: dict[str, Any] = field(default_factory=dict)
@@ -79,5 +90,12 @@ class AgentState:
             "research_adjustment": self.research_adjustment,
             "memory": self.memory,
             "reflection": self.reflection,
+            "facts": self.facts,
+            "forecasts": self.forecasts,
+            "market_state": self.market_state,
+            "council": self.council,
+            "meta_decision": self.meta_decision,
+            "risk_governor": self.risk_governor,
+            "portfolio": self.portfolio,
             "gate": self.gate.to_dict() if self.gate else None,
         }

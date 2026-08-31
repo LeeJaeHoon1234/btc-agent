@@ -14,7 +14,7 @@ from src.tools.intraday_indicators import latest_metrics, summarize_series
 UPBIT_BASE_URL = "https://api.upbit.com/v1"
 COINBASE_TICKER_URL = "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
 TIMEOUT = 7
-HEADERS = {"User-Agent": "btc-agent-v4.1/4.1"}
+HEADERS = {"User-Agent": "bitscope-v5/5.0"}
 
 
 def _get(path: str, params: dict | None = None):

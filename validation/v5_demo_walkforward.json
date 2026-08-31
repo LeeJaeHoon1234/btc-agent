@@ -1,0 +1,978 @@
+{
+  "validation": "strict_walkforward_forecast_layer",
+  "lookahead_guard": "each historical forecast receives only rows at or before its as-of timestamp",
+  "scope": "numerical forecast distributions only; full V5 council/risk allocation requires prospective live track record",
+  "rows": 1900,
+  "by_horizon": {
+    "TODAY": {
+      "samples": 24,
+      "skipped": 0,
+      "direction_accuracy": 0.4583,
+      "mean_brier": 0.2528,
+      "mean_absolute_return_error_pct": 1.3252,
+      "q10_q90_coverage": 0.8333,
+      "mean_confidence": 0.6042
+    },
+    "1W": {
+      "samples": 24,
+      "skipped": 0,
+      "direction_accuracy": 0.4167,
+      "mean_brier": 0.2793,
+      "mean_absolute_return_error_pct": 5.1477,
+      "q10_q90_coverage": 0.5833,
+      "mean_confidence": 0.641
+    },
+    "1M": {
+      "samples": 24,
+      "skipped": 0,
+      "direction_accuracy": 0.5833,
+      "mean_brier": 0.2398,
+      "mean_absolute_return_error_pct": 6.7843,
+      "q10_q90_coverage": 0.6667,
+      "mean_confidence": 0.6094
+    },
+    "1Y": {
+      "samples": 21,
+      "skipped": 3,
+      "direction_accuracy": 0.6667,
+      "mean_brier": 0.2215,
+      "mean_absolute_return_error_pct": 30.7975,
+      "q10_q90_coverage": 0.2381,
+      "mean_confidence": 0.5382
+    }
+  },
+  "observations": [
+    {
+      "horizon": "TODAY",
+      "as_of": "2023-03-01 00:00:00",
+      "probability_up_pct": 55.17,
+      "expected_return_pct": 0.657,
+      "q10_return_pct": -2.233,
+      "q90_return_pct": 3.339,
+      "confidence": 0.598,
+      "realized_return_pct": 2.31839337860662
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2023-04-25 00:00:00",
+      "probability_up_pct": 50.84,
+      "expected_return_pct": 0.374,
+      "q10_return_pct": -2.611,
+      "q90_return_pct": 3.255,
+      "confidence": 0.561,
+      "realized_return_pct": 3.5249210355892124
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2023-06-20 00:00:00",
+      "probability_up_pct": 47.31,
+      "expected_return_pct": -0.397,
+      "q10_return_pct": -3.696,
+      "q90_return_pct": 1.843,
+      "confidence": 0.56,
+      "realized_return_pct": 0.6659751743595121
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2023-08-14 00:00:00",
+      "probability_up_pct": 42.86,
+      "expected_return_pct": -0.32,
+      "q10_return_pct": -2.31,
+      "q90_return_pct": 1.966,
+      "confidence": 0.598,
+      "realized_return_pct": 0.259320280947839
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2023-10-09 00:00:00",
+      "probability_up_pct": 46.01,
+      "expected_return_pct": -0.116,
+      "q10_return_pct": -2.036,
+      "q90_return_pct": 1.76,
+      "confidence": 0.545,
+      "realized_return_pct": -0.08489828399885768
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2023-12-03 00:00:00",
+      "probability_up_pct": 43.91,
+      "expected_return_pct": -0.134,
+      "q10_return_pct": -2.757,
+      "q90_return_pct": 2.326,
+      "confidence": 0.582,
+      "realized_return_pct": -0.5408356971371098
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2024-01-28 00:00:00",
+      "probability_up_pct": 42.85,
+      "expected_return_pct": 0.129,
+      "q10_return_pct": -2.462,
+      "q90_return_pct": 3.084,
+      "confidence": 0.608,
+      "realized_return_pct": 1.2778757905234528
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2024-03-23 00:00:00",
+      "probability_up_pct": 41.73,
+      "expected_return_pct": 0.08,
+      "q10_return_pct": -2.017,
+      "q90_return_pct": 2.52,
+      "confidence": 0.612,
+      "realized_return_pct": -0.28574143562745125
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2024-05-18 00:00:00",
+      "probability_up_pct": 40.93,
+      "expected_return_pct": -0.142,
+      "q10_return_pct": -2.795,
+      "q90_return_pct": 2.639,
+      "confidence": 0.626,
+      "realized_return_pct": -1.551817667310884
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2024-07-13 00:00:00",
+      "probability_up_pct": 69.29,
+      "expected_return_pct": 0.846,
+      "q10_return_pct": -1.838,
+      "q90_return_pct": 2.8,
+      "confidence": 0.76,
+      "realized_return_pct": 4.517930833869532
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2024-09-06 00:00:00",
+      "probability_up_pct": 49.21,
+      "expected_return_pct": 0.18,
+      "q10_return_pct": -2.201,
+      "q90_return_pct": 2.99,
+      "confidence": 0.589,
+      "realized_return_pct": 1.030216802042827
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2024-11-01 00:00:00",
+      "probability_up_pct": 60.19,
+      "expected_return_pct": 0.186,
+      "q10_return_pct": -2.721,
+      "q90_return_pct": 2.681,
+      "confidence": 0.63,
+      "realized_return_pct": 0.853140165209143
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2024-12-26 00:00:00",
+      "probability_up_pct": 44.49,
+      "expected_return_pct": -0.125,
+      "q10_return_pct": -2.277,
+      "q90_return_pct": 1.874,
+      "confidence": 0.598,
+      "realized_return_pct": 2.0844211275791835
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2025-02-20 00:00:00",
+      "probability_up_pct": 53.1,
+      "expected_return_pct": 0.254,
+      "q10_return_pct": -1.947,
+      "q90_return_pct": 2.446,
+      "confidence": 0.613,
+      "realized_return_pct": -0.45188651578851324
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2025-04-16 00:00:00",
+      "probability_up_pct": 57.48,
+      "expected_return_pct": 0.329,
+      "q10_return_pct": -1.72,
+      "q90_return_pct": 2.507,
+      "confidence": 0.628,
+      "realized_return_pct": -0.8001043458620849
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2025-06-11 00:00:00",
+      "probability_up_pct": 43.51,
+      "expected_return_pct": -0.269,
+      "q10_return_pct": -2.855,
+      "q90_return_pct": 2.203,
+      "confidence": 0.616,
+      "realized_return_pct": -0.6619542390969069
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2025-08-06 00:00:00",
+      "probability_up_pct": 45.98,
+      "expected_return_pct": -0.364,
+      "q10_return_pct": -3.065,
+      "q90_return_pct": 1.999,
+      "confidence": 0.621,
+      "realized_return_pct": 4.018932818911214
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2025-09-30 00:00:00",
+      "probability_up_pct": 48.97,
+      "expected_return_pct": -0.043,
+      "q10_return_pct": -2.45,
+      "q90_return_pct": 1.773,
+      "confidence": 0.568,
+      "realized_return_pct": 1.4023384049939303
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2025-11-25 00:00:00",
+      "probability_up_pct": 55.83,
+      "expected_return_pct": 0.218,
+      "q10_return_pct": -2.373,
+      "q90_return_pct": 2.859,
+      "confidence": 0.591,
+      "realized_return_pct": -0.17882739090145927
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2026-01-19 00:00:00",
+      "probability_up_pct": 48.52,
+      "expected_return_pct": -0.458,
+      "q10_return_pct": -3.104,
+      "q90_return_pct": 1.162,
+      "confidence": 0.608,
+      "realized_return_pct": -2.528858661860389
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2026-03-16 00:00:00",
+      "probability_up_pct": 47.15,
+      "expected_return_pct": -0.178,
+      "q10_return_pct": -2.422,
+      "q90_return_pct": 2.127,
+      "confidence": 0.571,
+      "realized_return_pct": -1.2837938166617713
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2026-05-10 00:00:00",
+      "probability_up_pct": 54.05,
+      "expected_return_pct": 0.153,
+      "q10_return_pct": -2.797,
+      "q90_return_pct": 2.679,
+      "confidence": 0.564,
+      "realized_return_pct": -0.6695091481606186
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2026-07-05 00:00:00",
+      "probability_up_pct": 60.8,
+      "expected_return_pct": 0.284,
+      "q10_return_pct": -2.723,
+      "q90_return_pct": 2.939,
+      "confidence": 0.629,
+      "realized_return_pct": -0.7908735455791294
+    },
+    {
+      "horizon": "TODAY",
+      "as_of": "2026-08-30 00:00:00",
+      "probability_up_pct": 58.68,
+      "expected_return_pct": 0.358,
+      "q10_return_pct": -2.219,
+      "q90_return_pct": 2.284,
+      "confidence": 0.624,
+      "realized_return_pct": -0.7032804688164473
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2023-03-01 00:00:00",
+      "probability_up_pct": 68.43,
+      "expected_return_pct": 3.618,
+      "q10_return_pct": -1.725,
+      "q90_return_pct": 8.394,
+      "confidence": 0.7,
+      "realized_return_pct": 1.1002953997661713
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2023-04-25 00:00:00",
+      "probability_up_pct": 64.32,
+      "expected_return_pct": 2.743,
+      "q10_return_pct": -1.963,
+      "q90_return_pct": 7.901,
+      "confidence": 0.7,
+      "realized_return_pct": 7.249086611835609
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2023-06-19 00:00:00",
+      "probability_up_pct": 49.16,
+      "expected_return_pct": -0.912,
+      "q10_return_pct": -7.054,
+      "q90_return_pct": 4.515,
+      "confidence": 0.539,
+      "realized_return_pct": 5.952225430107028
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2023-08-13 00:00:00",
+      "probability_up_pct": 60.1,
+      "expected_return_pct": 0.836,
+      "q10_return_pct": -4.789,
+      "q90_return_pct": 3.937,
+      "confidence": 0.602,
+      "realized_return_pct": 3.995292195183864
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2023-10-08 00:00:00",
+      "probability_up_pct": 36.89,
+      "expected_return_pct": -1.219,
+      "q10_return_pct": -6.365,
+      "q90_return_pct": 2.944,
+      "confidence": 0.672,
+      "realized_return_pct": 2.097458500680105
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2023-12-02 00:00:00",
+      "probability_up_pct": 61.14,
+      "expected_return_pct": 0.681,
+      "q10_return_pct": -3.138,
+      "q90_return_pct": 3.653,
+      "confidence": 0.631,
+      "realized_return_pct": -7.212995725278759
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2024-01-26 00:00:00",
+      "probability_up_pct": 63.3,
+      "expected_return_pct": 2.291,
+      "q10_return_pct": -2.055,
+      "q90_return_pct": 7.329,
+      "confidence": 0.7,
+      "realized_return_pct": 8.708972785103697
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2024-03-22 00:00:00",
+      "probability_up_pct": 48.52,
+      "expected_return_pct": 0.438,
+      "q10_return_pct": -3.558,
+      "q90_return_pct": 4.459,
+      "confidence": 0.578,
+      "realized_return_pct": 6.715327002012295
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2024-05-16 00:00:00",
+      "probability_up_pct": 45.72,
+      "expected_return_pct": 0.425,
+      "q10_return_pct": -4.524,
+      "q90_return_pct": 5.712,
+      "confidence": 0.576,
+      "realized_return_pct": 3.765096308510252
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2024-07-10 00:00:00",
+      "probability_up_pct": 83.01,
+      "expected_return_pct": 2.73,
+      "q10_return_pct": 0.15,
+      "q90_return_pct": 6.842,
+      "confidence": 0.7,
+      "realized_return_pct": 9.055280004758881
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2024-09-04 00:00:00",
+      "probability_up_pct": 70.57,
+      "expected_return_pct": 2.573,
+      "q10_return_pct": -3.263,
+      "q90_return_pct": 6.922,
+      "confidence": 0.7,
+      "realized_return_pct": -0.2550889369555498
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2024-10-29 00:00:00",
+      "probability_up_pct": 65.0,
+      "expected_return_pct": 1.465,
+      "q10_return_pct": -5.072,
+      "q90_return_pct": 7.249,
+      "confidence": 0.697,
+      "realized_return_pct": 5.8556600409822135
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2024-12-23 00:00:00",
+      "probability_up_pct": 58.17,
+      "expected_return_pct": 1.288,
+      "q10_return_pct": -3.493,
+      "q90_return_pct": 6.73,
+      "confidence": 0.653,
+      "realized_return_pct": -2.2285822189934135
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2025-02-16 00:00:00",
+      "probability_up_pct": 59.98,
+      "expected_return_pct": 1.819,
+      "q10_return_pct": -2.133,
+      "q90_return_pct": 7.037,
+      "confidence": 0.7,
+      "realized_return_pct": -0.4155768579617858
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2025-04-13 00:00:00",
+      "probability_up_pct": 67.01,
+      "expected_return_pct": 2.181,
+      "q10_return_pct": -4.089,
+      "q90_return_pct": 7.276,
+      "confidence": 0.7,
+      "realized_return_pct": -2.3743817378502508
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2025-06-07 00:00:00",
+      "probability_up_pct": 35.7,
+      "expected_return_pct": -1.042,
+      "q10_return_pct": -7.249,
+      "q90_return_pct": 5.197,
+      "confidence": 0.65,
+      "realized_return_pct": -5.210196997052718
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2025-08-01 00:00:00",
+      "probability_up_pct": 54.36,
+      "expected_return_pct": 0.425,
+      "q10_return_pct": -4.555,
+      "q90_return_pct": 5.838,
+      "confidence": 0.565,
+      "realized_return_pct": 10.82926440361971
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2025-09-26 00:00:00",
+      "probability_up_pct": 54.42,
+      "expected_return_pct": 0.157,
+      "q10_return_pct": -6.478,
+      "q90_return_pct": 6.382,
+      "confidence": 0.554,
+      "realized_return_pct": 9.850370428370624
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2025-11-20 00:00:00",
+      "probability_up_pct": 44.51,
+      "expected_return_pct": -0.146,
+      "q10_return_pct": -5.892,
+      "q90_return_pct": 7.589,
+      "confidence": 0.548,
+      "realized_return_pct": 11.02147329286054
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2026-01-14 00:00:00",
+      "probability_up_pct": 43.17,
+      "expected_return_pct": -0.484,
+      "q10_return_pct": -6.486,
+      "q90_return_pct": 5.587,
+      "confidence": 0.572,
+      "realized_return_pct": 2.392058356783666
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2026-03-11 00:00:00",
+      "probability_up_pct": 38.79,
+      "expected_return_pct": -1.546,
+      "q10_return_pct": -6.817,
+      "q90_return_pct": 3.24,
+      "confidence": 0.667,
+      "realized_return_pct": -2.2440062225002166
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2026-05-05 00:00:00",
+      "probability_up_pct": 58.51,
+      "expected_return_pct": 0.628,
+      "q10_return_pct": -4.995,
+      "q90_return_pct": 5.931,
+      "confidence": 0.581,
+      "realized_return_pct": -5.490895100214644
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2026-06-29 00:00:00",
+      "probability_up_pct": 71.95,
+      "expected_return_pct": 2.11,
+      "q10_return_pct": -5.063,
+      "q90_return_pct": 7.241,
+      "confidence": 0.7,
+      "realized_return_pct": -4.444449556564356
+    },
+    {
+      "horizon": "1W",
+      "as_of": "2026-08-24 00:00:00",
+      "probability_up_pct": 78.11,
+      "expected_return_pct": 3.388,
+      "q10_return_pct": -2.287,
+      "q90_return_pct": 7.835,
+      "confidence": 0.7,
+      "realized_return_pct": -0.3333115964095579
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2023-03-01 00:00:00",
+      "probability_up_pct": 81.24,
+      "expected_return_pct": 10.562,
+      "q10_return_pct": 3.887,
+      "q90_return_pct": 18.363,
+      "confidence": 0.64,
+      "realized_return_pct": 11.340026736839025
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2023-04-24 00:00:00",
+      "probability_up_pct": 69.11,
+      "expected_return_pct": 7.557,
+      "q10_return_pct": -6.894,
+      "q90_return_pct": 17.689,
+      "confidence": 0.64,
+      "realized_return_pct": 12.647002590383716
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2023-06-17 00:00:00",
+      "probability_up_pct": 37.4,
+      "expected_return_pct": -2.624,
+      "q10_return_pct": -8.533,
+      "q90_return_pct": 2.963,
+      "confidence": 0.64,
+      "realized_return_pct": 13.73939206202266
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2023-08-10 00:00:00",
+      "probability_up_pct": 64.12,
+      "expected_return_pct": 3.679,
+      "q10_return_pct": -3.694,
+      "q90_return_pct": 11.958,
+      "confidence": 0.64,
+      "realized_return_pct": 6.811197910518252
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2023-10-04 00:00:00",
+      "probability_up_pct": 28.6,
+      "expected_return_pct": -4.78,
+      "q10_return_pct": -10.086,
+      "q90_return_pct": 0.753,
+      "confidence": 0.64,
+      "realized_return_pct": -1.8304930226755056
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2023-11-27 00:00:00",
+      "probability_up_pct": 42.5,
+      "expected_return_pct": 0.254,
+      "q10_return_pct": -7.518,
+      "q90_return_pct": 11.367,
+      "confidence": 0.497,
+      "realized_return_pct": -0.5297400460119284
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2024-01-20 00:00:00",
+      "probability_up_pct": 66.08,
+      "expected_return_pct": 4.234,
+      "q10_return_pct": -5.978,
+      "q90_return_pct": 11.275,
+      "confidence": 0.64,
+      "realized_return_pct": 3.5976873203782844
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2024-03-15 00:00:00",
+      "probability_up_pct": 63.81,
+      "expected_return_pct": 5.469,
+      "q10_return_pct": -6.501,
+      "q90_return_pct": 16.41,
+      "confidence": 0.64,
+      "realized_return_pct": 11.82390050145019
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2024-05-08 00:00:00",
+      "probability_up_pct": 58.65,
+      "expected_return_pct": 3.464,
+      "q10_return_pct": -5.505,
+      "q90_return_pct": 14.393,
+      "confidence": 0.64,
+      "realized_return_pct": 6.563482639576512
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2024-07-01 00:00:00",
+      "probability_up_pct": 63.58,
+      "expected_return_pct": 4.692,
+      "q10_return_pct": -3.888,
+      "q90_return_pct": 17.339,
+      "confidence": 0.64,
+      "realized_return_pct": -4.415350420959752
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2024-08-25 00:00:00",
+      "probability_up_pct": 63.14,
+      "expected_return_pct": 2.115,
+      "q10_return_pct": -7.504,
+      "q90_return_pct": 9.803,
+      "confidence": 0.64,
+      "realized_return_pct": -10.24016987256352
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2024-10-18 00:00:00",
+      "probability_up_pct": 54.01,
+      "expected_return_pct": 2.045,
+      "q10_return_pct": -7.01,
+      "q90_return_pct": 12.159,
+      "confidence": 0.575,
+      "realized_return_pct": 0.6343474594033616
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2024-12-11 00:00:00",
+      "probability_up_pct": 73.33,
+      "expected_return_pct": 3.377,
+      "q10_return_pct": -3.48,
+      "q90_return_pct": 9.765,
+      "confidence": 0.64,
+      "realized_return_pct": 2.076181486121653
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2025-02-03 00:00:00",
+      "probability_up_pct": 70.13,
+      "expected_return_pct": 3.358,
+      "q10_return_pct": -7.621,
+      "q90_return_pct": 11.062,
+      "confidence": 0.64,
+      "realized_return_pct": 7.496494567115541
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2025-03-30 00:00:00",
+      "probability_up_pct": 73.85,
+      "expected_return_pct": 5.947,
+      "q10_return_pct": -1.011,
+      "q90_return_pct": 15.254,
+      "confidence": 0.64,
+      "realized_return_pct": -6.912117271670204
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2025-05-23 00:00:00",
+      "probability_up_pct": 69.76,
+      "expected_return_pct": 3.047,
+      "q10_return_pct": -4.0,
+      "q90_return_pct": 8.275,
+      "confidence": 0.64,
+      "realized_return_pct": 6.315606141457231
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2025-07-16 00:00:00",
+      "probability_up_pct": 48.53,
+      "expected_return_pct": -0.444,
+      "q10_return_pct": -7.262,
+      "q90_return_pct": 4.864,
+      "confidence": 0.517,
+      "realized_return_pct": 5.152900091487389
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2025-09-09 00:00:00",
+      "probability_up_pct": 39.84,
+      "expected_return_pct": -0.893,
+      "q10_return_pct": -9.917,
+      "q90_return_pct": 9.678,
+      "confidence": 0.572,
+      "realized_return_pct": 6.350080071646991
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2025-11-02 00:00:00",
+      "probability_up_pct": 57.02,
+      "expected_return_pct": 0.821,
+      "q10_return_pct": -7.301,
+      "q90_return_pct": 7.536,
+      "confidence": 0.543,
+      "realized_return_pct": 11.408607404296722
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2025-12-26 00:00:00",
+      "probability_up_pct": 40.18,
+      "expected_return_pct": -3.095,
+      "q10_return_pct": -11.453,
+      "q90_return_pct": 4.673,
+      "confidence": 0.64,
+      "realized_return_pct": 0.33151660928187887
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2026-02-19 00:00:00",
+      "probability_up_pct": 43.36,
+      "expected_return_pct": -1.823,
+      "q10_return_pct": -11.774,
+      "q90_return_pct": 7.782,
+      "confidence": 0.555,
+      "realized_return_pct": 4.016265254005802
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2026-04-14 00:00:00",
+      "probability_up_pct": 49.56,
+      "expected_return_pct": 1.209,
+      "q10_return_pct": -13.448,
+      "q90_return_pct": 15.324,
+      "confidence": 0.486,
+      "realized_return_pct": -23.064810196864816
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2026-06-07 00:00:00",
+      "probability_up_pct": 63.87,
+      "expected_return_pct": 3.798,
+      "q10_return_pct": -5.607,
+      "q90_return_pct": 15.097,
+      "confidence": 0.64,
+      "realized_return_pct": -11.56230468499323
+    },
+    {
+      "horizon": "1M",
+      "as_of": "2026-08-01 00:00:00",
+      "probability_up_pct": 68.58,
+      "expected_return_pct": 5.172,
+      "q10_return_pct": -2.224,
+      "q90_return_pct": 15.333,
+      "confidence": 0.64,
+      "realized_return_pct": -1.6947845749078483
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2023-06-28 00:00:00",
+      "probability_up_pct": 67.95,
+      "expected_return_pct": 6.229,
+      "q10_return_pct": -0.06,
+      "q90_return_pct": 11.527,
+      "confidence": 0.549,
+      "realized_return_pct": 20.183869393362542
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2023-08-06 00:00:00",
+      "probability_up_pct": 71.74,
+      "expected_return_pct": 22.188,
+      "q10_return_pct": 13.882,
+      "q90_return_pct": 34.522,
+      "confidence": 0.55,
+      "realized_return_pct": 21.694009047902775
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2023-09-15 00:00:00",
+      "probability_up_pct": 68.97,
+      "expected_return_pct": 7.77,
+      "q10_return_pct": 1.667,
+      "q90_return_pct": 14.852,
+      "confidence": 0.55,
+      "realized_return_pct": 3.1883563219941014
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2023-10-25 00:00:00",
+      "probability_up_pct": 71.71,
+      "expected_return_pct": 23.492,
+      "q10_return_pct": 13.941,
+      "q90_return_pct": 33.235,
+      "confidence": 0.55,
+      "realized_return_pct": -8.551843482886778
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2023-12-04 00:00:00",
+      "probability_up_pct": 71.82,
+      "expected_return_pct": 35.532,
+      "q10_return_pct": 21.873,
+      "q90_return_pct": 50.221,
+      "confidence": 0.55,
+      "realized_return_pct": -5.296369958674729
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-01-12 00:00:00",
+      "probability_up_pct": 71.74,
+      "expected_return_pct": 28.043,
+      "q10_return_pct": 14.166,
+      "q90_return_pct": 47.096,
+      "confidence": 0.55,
+      "realized_return_pct": 3.0819581028877385
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-02-21 00:00:00",
+      "probability_up_pct": 71.77,
+      "expected_return_pct": 16.35,
+      "q10_return_pct": 6.648,
+      "q90_return_pct": 23.88,
+      "confidence": 0.55,
+      "realized_return_pct": -1.3653162661048879
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-04-01 00:00:00",
+      "probability_up_pct": 70.2,
+      "expected_return_pct": 20.063,
+      "q10_return_pct": 1.507,
+      "q90_return_pct": 37.394,
+      "confidence": 0.55,
+      "realized_return_pct": -18.001216015349897
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-05-11 00:00:00",
+      "probability_up_pct": 71.65,
+      "expected_return_pct": 25.782,
+      "q10_return_pct": 12.825,
+      "q90_return_pct": 48.33,
+      "confidence": 0.55,
+      "realized_return_pct": -19.506919440288407
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-06-19 00:00:00",
+      "probability_up_pct": 71.67,
+      "expected_return_pct": 32.286,
+      "q10_return_pct": 15.022,
+      "q90_return_pct": 52.559,
+      "confidence": 0.55,
+      "realized_return_pct": -10.229281523950062
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-07-29 00:00:00",
+      "probability_up_pct": 72.47,
+      "expected_return_pct": 34.891,
+      "q10_return_pct": 17.266,
+      "q90_return_pct": 50.817,
+      "confidence": 0.55,
+      "realized_return_pct": 5.364695197263236
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-09-07 00:00:00",
+      "probability_up_pct": 72.71,
+      "expected_return_pct": 34.877,
+      "q10_return_pct": 15.259,
+      "q90_return_pct": 69.917,
+      "confidence": 0.55,
+      "realized_return_pct": 11.998738543315547
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-10-17 00:00:00",
+      "probability_up_pct": 72.98,
+      "expected_return_pct": 46.796,
+      "q10_return_pct": 23.598,
+      "q90_return_pct": 60.032,
+      "confidence": 0.55,
+      "realized_return_pct": 51.5583683571795
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2024-11-25 00:00:00",
+      "probability_up_pct": 73.7,
+      "expected_return_pct": 46.0,
+      "q10_return_pct": 28.405,
+      "q90_return_pct": 54.793,
+      "confidence": 0.55,
+      "realized_return_pct": 55.41418717026714
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2025-01-04 00:00:00",
+      "probability_up_pct": 74.04,
+      "expected_return_pct": 37.55,
+      "q10_return_pct": 16.078,
+      "q90_return_pct": 54.082,
+      "confidence": 0.55,
+      "realized_return_pct": 73.96354862371403
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2025-02-13 00:00:00",
+      "probability_up_pct": 68.73,
+      "expected_return_pct": 35.989,
+      "q10_return_pct": -1.04,
+      "q90_return_pct": 63.974,
+      "confidence": 0.55,
+      "realized_return_pct": 90.69516737136863
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2025-03-25 00:00:00",
+      "probability_up_pct": 74.56,
+      "expected_return_pct": 40.969,
+      "q10_return_pct": 20.174,
+      "q90_return_pct": 54.366,
+      "confidence": 0.55,
+      "realized_return_pct": 136.89666599760298
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2025-05-03 00:00:00",
+      "probability_up_pct": 74.88,
+      "expected_return_pct": 43.746,
+      "q10_return_pct": 24.392,
+      "q90_return_pct": 54.236,
+      "confidence": 0.55,
+      "realized_return_pct": 133.19748809373033
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2025-06-12 00:00:00",
+      "probability_up_pct": 68.56,
+      "expected_return_pct": 27.393,
+      "q10_return_pct": -1.761,
+      "q90_return_pct": 51.494,
+      "confidence": 0.55,
+      "realized_return_pct": 52.61718720811499
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2025-07-22 00:00:00",
+      "probability_up_pct": 57.31,
+      "expected_return_pct": 3.311,
+      "q10_return_pct": -34.508,
+      "q90_return_pct": 40.049,
+      "confidence": 0.418,
+      "realized_return_pct": 7.079826621663954
+    },
+    {
+      "horizon": "1Y",
+      "as_of": "2025-08-31 00:00:00",
+      "probability_up_pct": 60.06,
+      "expected_return_pct": 1.269,
+      "q10_return_pct": -34.288,
+      "q90_return_pct": 20.567,
+      "confidence": 0.436,
+      "realized_return_pct": -12.95847977164427
+    }
+  ],
+  "dataset": "synthetic_demo_market_data_seed_41",
+  "disclaimer": "Engineering sanity check only; synthetic data is not evidence of live profitability."
+}

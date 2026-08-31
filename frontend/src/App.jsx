@@ -3,6 +3,7 @@ import { getHealth, getLive, getUsage, runAnalysis } from './api.js'
 import { DEFAULT_QUESTIONS, I18N, LANG_STORAGE_KEY, eventView, initialLanguage, liveHeadline, moveMeaning, reflectionLesson } from './i18n.js'
 
 const HORIZONS = ['NOW', 'TODAY', '1W', '1M', '1Y']
+const EXPOSURE_STORAGE_KEY = 'bitscope.currentExposurePct'
 const fmt = (v, d = 1, lang = 'ko') => v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : Number(v).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US', { maximumFractionDigits: d })
 const usd = (v) => v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 const pct = (v, d = 1, lang = 'ko') => v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : `${Number(v) >= 0 ? '+' : ''}${fmt(v, d, lang)}%`
@@ -24,6 +25,9 @@ const stanceMeta = (s, lang = 'ko') => {
   return [I18N[lang].stance[s] || I18N[lang].stance.UNKNOWN, tone]
 }
 const valueTone = (v) => Number(v) > 0.05 ? 'positive' : Number(v) < -0.05 ? 'negative' : 'neutral'
+const signed = (v, d = 1, lang = 'ko') => v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : `${Number(v) >= 0 ? '+' : ''}${fmt(v, d, lang)}`
+const humanCode = (v = '') => String(v || '').replaceAll('_', ' ').replace(/\b\w/g, (m) => m.toUpperCase())
+const initialExposure = () => { try { const v = localStorage.getItem(EXPOSURE_STORAGE_KEY); return v === null ? '' : v } catch (_) { return '' } }
 
 function Badge({ children, tone = 'neutral' }) { return <span className={`badge badge-${tone}`}>{children}</span> }
 function List({ items = [], empty = '—' }) {
@@ -45,6 +49,49 @@ function PerformanceMatrix({ memory, regime, lang }) {
   const rows = Object.entries(memory?.performance_matrix?.[regime] || {}).filter(([, v]) => Number(v?.samples || 0) > 0)
   if (!rows.length) return <p className="muted">{t.noPerformance}</p>
   return <div className="performance-table">{rows.sort((a,b) => (b[1]?.samples || 0) - (a[1]?.samples || 0)).map(([domain, v]) => <div key={domain}><span>{domain}</span><strong>{Number(v.samples) >= 3 ? `${fmt(Number(v.aligned_rate || 0) * 100, 0, lang)}%` : t.insufficient}</strong><small>{t.cases(v.samples)}</small></div>)}</div>
+}
+
+
+function ForecastCard({ forecast, horizon, lang }) {
+  const t = I18N[lang]
+  if (!forecast?.available) return <div className="forecast-empty">{t.forecastUnavailable}</div>
+  const confidence = Number(forecast.confidence || 0) * 100
+  return <div className="forecast-grid">
+    <div><span>{t.expectedReturn}</span><strong className={`text-${valueTone(forecast.expected_return_pct)}`}>{pct(forecast.expected_return_pct, 1, lang)}</strong></div>
+    <div><span>{t.probabilityUp}</span><strong>{fmt(forecast.probability_up_pct, 0, lang)}%</strong></div>
+    <div><span>{t.downsideRange}</span><strong>{pct(forecast.q10_return_pct, 1, lang)}</strong></div>
+    <div><span>{t.upsideRange}</span><strong>{pct(forecast.q90_return_pct, 1, lang)}</strong></div>
+    <div><span>{t.forecastConfidence}</span><strong>{fmt(confidence, 0, lang)}%</strong></div>
+    <div><span>{t.analogSamples}</span><strong>{forecast.sample_count ?? t.stateModel}</strong></div>
+    <div className="forecast-range-row"><span>{t.centralRange}</span><div className="forecast-range"><i style={{ left: '10%' }} /><b style={{ left: '50%' }} /><i style={{ left: '90%' }} /></div><small>{pct(forecast.q10_return_pct, 1, lang)} → {pct(forecast.q90_return_pct, 1, lang)}</small></div>
+  </div>
+}
+
+function CouncilPanel({ council, lang }) {
+  const t = I18N[lang]
+  const entries = Object.entries(council?.agents || {})
+  if (!entries.length) return null
+  const tone = (stance) => stance === 'BULLISH' ? 'positive' : stance === 'BEARISH' ? 'negative' : 'neutral'
+  return <section className="council-panel">
+    <div className="section-heading"><div><p className="eyebrow">{t.agentCouncil}</p><h3>{t.agentCouncilTitle}</h3></div><Badge tone={Number(council?.disagreement || 0) >= .55 ? 'warning' : 'neutral'}>{t.disagreement} {fmt(Number(council?.disagreement || 0) * 100, 0, lang)}%</Badge></div>
+    <div className="council-grid">{entries.map(([name, agent]) => <article key={name} className="council-agent"><div className="council-agent-head"><strong>{t.councilNames?.[name] || humanCode(name)}</strong><Badge tone={tone(agent?.stance)}>{agent?.stance || 'NEUTRAL'} · {fmt(Number(agent?.confidence || 0) * 100, 0, lang)}%</Badge></div><p>{agent?.thesis || '—'}</p><small>{t.counterpoint}: {agent?.counterargument || '—'}</small></article>)}</div>
+  </section>
+}
+
+function PortfolioPanel({ portfolio, governor, marketState, currentExposure, setCurrentExposure, onApply, lang, loading }) {
+  const t = I18N[lang]
+  if (!portfolio && !governor) return null
+  const levels = portfolio?.levels || {}
+  const change = portfolio?.recommended_change_pct
+  return <section className="portfolio-panel">
+    <div className="portfolio-main">
+      <div className="section-heading"><div><p className="eyebrow">{t.portfolioPlan}</p><h3>{t.targetExposure} {fmt(portfolio?.target_exposure_pct, 1, lang)}%</h3></div><Badge tone={governor?.capped ? 'warning' : 'positive'}>{governor?.capped ? t.riskCapped : t.riskPassed}</Badge></div>
+      <div className="allocation-grid"><div><span>{t.currentExposure}</span><strong>{portfolio?.current_exposure_pct === null || portfolio?.current_exposure_pct === undefined ? t.notSet : `${fmt(portfolio.current_exposure_pct, 1, lang)}%`}</strong></div><div><span>{t.recommendedChange}</span><strong className={`text-${valueTone(change)}`}>{change === null || change === undefined ? '—' : `${signed(change, 1, lang)}%p`}</strong></div><div><span>{t.riskCeiling}</span><strong>{fmt(governor?.max_allowed_exposure_pct, 0, lang)}%</strong></div><div><span>{t.marketState}</span><strong>{humanCode(marketState?.regime || '—')}</strong><small>{humanCode(marketState?.acute_state || '')}</small></div></div>
+      <div className="exposure-control"><label><span>{t.myExposure}</span><div><input type="number" min="0" max="100" step="1" placeholder="0–100" value={currentExposure} onChange={(e) => setCurrentExposure(e.target.value)} /><b>%</b></div></label><button className="refresh-btn" disabled={loading} onClick={onApply}>{t.applyExposure}</button><small>{t.exposureHelp}</small></div>
+      {(governor?.reasons || []).length > 0 && <div className="governor-reasons"><strong>{t.governorReason}</strong><List items={governor.reasons} /></div>}
+    </div>
+    <div className="levels-panel"><p className="eyebrow">{t.scenarioLevels}</p><div className="levels-grid"><div><span>{t.entryZone}</span><strong>{levels?.entry_zone?.length ? `₩${fmt(levels.entry_zone[0],0,lang)} – ₩${fmt(levels.entry_zone[1],0,lang)}` : '—'}</strong></div><div><span>{t.addWeakness}</span><strong>{levels?.add_on_weakness_anchor ? `₩${fmt(levels.add_on_weakness_anchor,0,lang)}` : '—'}</strong></div><div><span>{t.invalidation}</span><strong>{levels?.invalidation_anchor ? `₩${fmt(levels.invalidation_anchor,0,lang)}` : '—'}</strong></div><div><span>{t.takeProfitLevels}</span><strong>{levels?.take_profit_1 ? `₩${fmt(levels.take_profit_1,0,lang)} / ₩${fmt(levels.take_profit_2,0,lang)}` : '—'}</strong></div></div><small>{t.scenarioNote}</small></div>
+  </section>
 }
 
 function PriceChart({ series = [], height = 120, zoom = 1, interactive = false, lang = 'ko' }) {
@@ -170,12 +217,14 @@ export default function App() {
   const [selected, setSelected] = useState('NOW')
   const [question, setQuestion] = useState(() => DEFAULT_QUESTIONS[initialLanguage()])
   const [chartOpen, setChartOpen] = useState(false)
+  const [currentExposure, setCurrentExposure] = useState(initialExposure)
   const { tick, status: wsStatus } = useUpbitTicker(source === 'live')
 
   const refreshLive = async (nextSource = source) => { try { setLiveRest(await getLive({ source: nextSource })) } catch (_) { /* websocket or last analysis remains visible */ } }
-  const analyze = async (nextSource = source, nextLang = lang, nextQuestion = question) => {
+  const analyze = async (nextSource = source, nextLang = lang, nextQuestion = question, nextExposure = currentExposure) => {
     setLoading(true); setError('')
-    try { const result = await runAnalysis({ source: nextSource, question: nextQuestion, language: nextLang }); setAnalysis(result); setSource(nextSource); getUsage().then(setUsage).catch(() => {}); refreshLive(nextSource) }
+    const exposure = nextExposure === '' ? null : Number(nextExposure)
+    try { const result = await runAnalysis({ source: nextSource, question: nextQuestion, language: nextLang, currentExposurePct: Number.isFinite(exposure) ? exposure : null }); setAnalysis(result); setSource(nextSource); getUsage().then(setUsage).catch(() => {}); refreshLive(nextSource) }
     catch (e) { setError(e.message || String(e)) }
     finally { setLoading(false) }
   }
@@ -190,7 +239,7 @@ export default function App() {
     setQuestion(nextQuestion)
     try { localStorage.setItem(LANG_STORAGE_KEY, nextLang) } catch (_) {}
     document.documentElement.lang = nextLang
-    analyze(source, nextLang, nextQuestion)
+    analyze(source, nextLang, nextQuestion, currentExposure)
   }
 
   const a = analysis?.analysis
@@ -208,11 +257,13 @@ export default function App() {
   const user = a?.user_view || a?.explanation || {}
   const quota = analysis?.meta?.llm_usage?.quota || usage
   const liveState = source === 'demo' ? 'DEMO' : wsStatus === 'live' ? 'LIVE' : rest?.available ? 'REST' : 'OFFLINE'
-  const signalMap = useMemo(() => Object.fromEntries((a?.signals || []).map((x) => [x.id, x])), [a])
+  const signalMap = useMemo(() => Object.fromEntries(((a?.facts?.length ? a.facts : a?.signals) || []).map((x) => [x.id, x])), [a])
   const selectedFacts = (hdata?.key_signal_ids || []).map((id) => signalMap[id]).filter(Boolean)
   const series1m = rest?.series_1m || a?.live?.series_1m || []
   const series5m = rest?.series_5m || a?.live?.series_5m || []
   const series60m = rest?.series_60m || a?.live?.series_60m || []
+  const forecast = a?.forecasts?.[selected] || {}
+  const applyExposure = () => { const n = Number(currentExposure); if (currentExposure === '' || (Number.isFinite(n) && n >= 0 && n <= 100)) { try { currentExposure === '' ? localStorage.removeItem(EXPOSURE_STORAGE_KEY) : localStorage.setItem(EXPOSURE_STORAGE_KEY, String(n)) } catch (_) {}; analyze(source, lang, question, currentExposure) } }
 
   const dayLow = source === 'live' ? (tick?.dayLow ?? rest?.ticker?.day_low ?? rest?.ticker?.low_24h) : (rest?.ticker?.day_low ?? rest?.ticker?.low_24h)
   const dayHigh = source === 'live' ? (tick?.dayHigh ?? rest?.ticker?.day_high ?? rest?.ticker?.high_24h) : (rest?.ticker?.day_high ?? rest?.ticker?.high_24h)
@@ -258,17 +309,19 @@ export default function App() {
       <button className="open-chart" onClick={() => setChartOpen(true)}>{t.chartOpen}</button>
 
       <section className="decision-card">
-        <div className="decision-copy"><p className="eyebrow">{t.currentDecision} · {analysis?.meta?.cached ? t.cachedAnalysis : t.freshAnalysis}</p><h2>{user?.headline || t.analyzingMarket}</h2><p>{user?.summary || t.analysisRefreshNote}</p></div>
+        <div className="decision-copy"><p className="eyebrow">{t.currentDecision} · {analysis?.meta?.cached ? t.cachedAnalysis : t.freshAnalysis}</p><div className="state-badges"><Badge tone="neutral">{t.structure}: {humanCode(a?.market_state?.structural_regime || a?.regime?.regime || t.checking)}</Badge><Badge tone={String(a?.market_state?.acute_state || "").includes("down") || String(a?.market_state?.acute_state || "").includes("flush") ? "warning" : "neutral"}>{t.nowState}: {humanCode(a?.market_state?.acute_state || "normal")}</Badge></div><h2>{user?.headline || t.analyzingMarket}</h2><p>{user?.summary || t.analysisRefreshNote}</p></div>
         <div className="actions-grid"><Action label={t.existingHold} value={user?.actions?.hold} /><Action label={t.add} value={user?.actions?.add} /><Action label={t.takeProfit} value={user?.actions?.take_profit} /></div>
       </section>
+      <PortfolioPanel portfolio={a?.portfolio} governor={a?.risk_governor} marketState={a?.market_state} currentExposure={currentExposure} setCurrentExposure={setCurrentExposure} onApply={applyExposure} lang={lang} loading={loading} />
 
       {rest?.fast_view?.requires_ai_refresh && <div className="live-alert">{t.refreshNeeded} <button onClick={() => analyze(source)}>{t.recalcAI}</button></div>}
       {event && <section className="event-card"><div className="event-icon">⚡</div><div><span>{t.detectedMove}</span><h3>{event.title}</h3><p>{(event.facts || []).filter(Boolean).join(' · ')}</p></div></section>}
 
       <section className="horizon-panel">
         <div className="horizon-tabs">{HORIZONS.map((key) => { const [label, tone] = stanceMeta(a?.horizons?.[key]?.stance, lang); return <button key={key} className={`${selected === key ? 'active' : ''} horizon-${tone}`} onClick={() => setSelected(key)}><strong>{t.horizon[key]}</strong><span>{label}</span></button> })}</div>
-        <div className="horizon-detail"><div className="horizon-title"><div><p className="eyebrow">{t.horizon[selected]} {t.perspective}</p><h2>{hdata?.headline || t.analyzingShort}</h2></div><Badge tone={stanceTone}>{stanceLabel} · {fmt((hdata?.confidence || 0) * 100, 0, lang)}%</Badge></div><p className="horizon-summary">{hdata?.summary || '—'}</p><div className="horizon-columns"><div><h4>{t.positivePoints}</h4><List items={hdata?.good} empty={t.noPositive} /></div><div><h4>{t.riskPoints}</h4><List items={hdata?.risks} empty={t.noRisk} /></div></div></div>
+        <div className="horizon-detail"><div className="horizon-title"><div><p className="eyebrow">{t.horizon[selected]} {t.perspective}</p><h2>{hdata?.headline || t.analyzingShort}</h2></div><Badge tone={stanceTone}>{stanceLabel} · {fmt((hdata?.confidence || 0) * 100, 0, lang)}%</Badge></div><p className="horizon-summary">{hdata?.summary || '—'}</p><ForecastCard forecast={forecast} horizon={selected} lang={lang} /><div className="horizon-columns"><div><h4>{t.positivePoints}</h4><List items={hdata?.good} empty={t.noPositive} /></div><div><h4>{t.riskPoints}</h4><List items={hdata?.risks} empty={t.noRisk} /></div></div></div>
       </section>
+      <CouncilPanel council={a?.council} lang={lang} />
 
       <section className="two-panels"><article className="simple-panel"><p className="eyebrow">{t.keyAI}</p><List items={user?.why} empty={t.waitResult} /></article><article className="simple-panel"><p className="eyebrow">{t.recheckWhen}</p><List items={user?.watch} empty={t.calculating} /></article></section>
 
@@ -277,12 +330,13 @@ export default function App() {
       <details className="advanced"><summary>{t.advanced}</summary><div className="advanced-inner">
         <section><h3>{t.horizon[selected]} {t.coreEvidence}</h3>{selectedFacts.length ? <div className="fact-grid">{selectedFacts.map((x) => <div className="fact" key={x.id}><code>{x.id}</code><strong>{x.fact}</strong><small>{x.domain} · {x.freshness}</small></div>)}</div> : <p className="muted">{t.noEvidence}</p>}</section>
         <section><h3>{t.reflectionMemory}</h3><div className="memory-head"><Badge tone="neutral">{t.resolved} {a?.memory?.resolved_count || 0}</Badge><Badge tone="neutral">{t.pending} {a?.memory?.pending_count || 0}</Badge></div><List items={(a?.memory?.recent_lessons || []).map((x) => reflectionLesson(x, lang))} empty={t.noReflection} /></section>
-        <section><h3>{t.performanceTitle}</h3><p className="section-note">{t.performanceNote}</p><PerformanceMatrix memory={a?.memory} regime={a?.regime?.regime || 'unknown'} lang={lang} /></section>
+        <section><h3>{t.performanceTitle}</h3><p className="section-note">{t.performanceNote}</p><PerformanceMatrix memory={a?.memory} regime={a?.market_state?.regime || a?.regime?.regime || 'unknown'} lang={lang} /></section>
+        <section><h3>{t.trackRecord}</h3><div className="memory-head"><Badge tone="neutral">{t.resolved} {a?.track_record?.resolved_total || 0}</Badge><Badge tone="neutral">{t.pending} {a?.track_record?.pending_total || 0}</Badge></div>{Object.keys(a?.track_record?.by_horizon || {}).length ? <FactGrid entries={Object.entries(a.track_record.by_horizon).map(([k,v]) => [k, `${t.brier} ${fmt(v?.mean_brier,3,lang)} · ${t.coverage} ${fmt((v?.interval_80_coverage || 0)*100,0,lang)}%`])} lang={lang} /> : <p className="muted">{t.noTrackRecord}</p>}</section>
         <section><h3>{t.liveValidation}</h3><Badge tone={validation?.status === 'ok' ? 'positive' : 'warning'}>{validation?.status === 'ok' ? t.consistent : t.recheck}</Badge><List items={lang === 'ko' ? (validation?.warnings || []) : (validation?.warnings?.length ? [t.genericQualityWarning] : [])} empty={t.noConflict} /></section>
         <section><h3>{t.liveMetrics}</h3><FactGrid entries={Object.entries(m).filter(([, v]) => typeof v === 'number').slice(0, 36)} lang={lang} /></section>
         <section><h3>{t.longMetrics}</h3><FactGrid entries={Object.entries(a?.latest || {}).filter(([, v]) => typeof v === 'number').slice(0, 30)} lang={lang} /></section>
         <section><h3>Critic</h3><Badge tone={a?.v4_critic?.passed ? 'positive' : 'warning'}>{a?.v4_critic?.passed ? t.passed : t.caution}</Badge><List items={[...(a?.v4_critic?.issues || []), ...(a?.v4_critic?.warnings || [])]} empty={t.none} /></section>
-        <section><h3>{t.developerCore}</h3><pre>{JSON.stringify({ entry: a?.entry, exit: a?.exit, ml: a?.ml, regime: a?.regime, events: a?.events, external: a?.external, memory: a?.memory, reflection: a?.reflection, llm_usage: analysis?.meta?.llm_usage, logs: a?.logs }, null, 2)}</pre></section>
+        <section><h3>{t.developerCore}</h3><pre>{JSON.stringify({ forecasts: a?.forecasts, market_state: a?.market_state, council: a?.council, meta_decision: a?.meta_decision, risk_governor: a?.risk_governor, portfolio: a?.portfolio, entry: a?.entry, exit: a?.exit, ml: a?.ml, regime: a?.regime, events: a?.events, external: a?.external, memory: a?.memory, reflection: a?.reflection, llm_usage: analysis?.meta?.llm_usage, logs: a?.logs }, null, 2)}</pre></section>
       </div></details>
 
       <section className="ask-panel"><div><strong>{t.askAI}</strong><span>{t.askNote}</span></div><textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={2} maxLength={600} /><button className="refresh-btn" disabled={loading} onClick={() => analyze(source)}>{t.analyzeQuestion}</button></section>

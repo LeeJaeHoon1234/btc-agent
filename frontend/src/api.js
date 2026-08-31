@@ -17,6 +17,10 @@ export async function getUsage() { requireApiBase(); return json(await fetch(`${
 export async function getLive({ market = 'KRW-BTC', source = 'live' } = {}) {
   requireApiBase(); const qs = new URLSearchParams({ market, source }); return json(await fetch(`${API_BASE_URL}/api/v1/live?${qs}`), 'Live snapshot')
 }
-export async function runAnalysis({ source = 'live', market = 'KRW-BTC', historyYears = 8, question = '현재 BTC를 NOW, TODAY, 1W, 1M, 1Y 관점에서 분석하고 보유·추가매수·익절 대응을 판단해줘.', language = 'ko' } = {}) {
-  requireApiBase(); return json(await fetch(`${API_BASE_URL}/api/v1/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ market, history_years: historyYears, source, question, language }) }), 'Analysis')
+export async function runAnalysis({ source = 'live', market = 'KRW-BTC', historyYears = 8, question = '현재 BTC를 NOW, TODAY, 1W, 1M, 1Y 관점에서 분석하고 보유·추가매수·익절 대응을 판단해줘.', language = 'ko', currentExposurePct = null } = {}) {
+  requireApiBase()
+  const body = { market, history_years: historyYears, source, question, language }
+  const exposure = Number(currentExposurePct)
+  if (currentExposurePct !== '' && currentExposurePct !== null && currentExposurePct !== undefined && Number.isFinite(exposure) && exposure >= 0 && exposure <= 100) body.current_exposure_pct = exposure
+  return json(await fetch(`${API_BASE_URL}/api/v1/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), 'Analysis')
 }
