@@ -31,3 +31,10 @@
 - `frontend/src/App.jsx` — Forecast, Council, Risk Governor, Portfolio, Track Record UI
 - `frontend/src/i18n.js` — KR/EN V5 labels
 - `frontend/src/styles.css` — V5 responsive layout
+
+## V5.0.1 hotfix
+
+- `src/tools/research/flow_tool.py` — strict Farside final-Total-cell parsing
+- `src/agents/v5/council_agent.py` — explicit specialist stance precedence, availability and domain counter-cases
+- `frontend/src/App.jsx` / `frontend/src/i18n.js` — normalized plain-language state labels
+- `V5_0_1_HOTFIX.md` — correctness and UI hotfix notes

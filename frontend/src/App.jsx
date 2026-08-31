@@ -27,6 +27,52 @@ const stanceMeta = (s, lang = 'ko') => {
 const valueTone = (v) => Number(v) > 0.05 ? 'positive' : Number(v) < -0.05 ? 'negative' : 'neutral'
 const signed = (v, d = 1, lang = 'ko') => v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : `${Number(v) >= 0 ? '+' : ''}${fmt(v, d, lang)}`
 const humanCode = (v = '') => String(v || '').replaceAll('_', ' ').replace(/\b\w/g, (m) => m.toUpperCase())
+const councilStanceLabel = (stance, available, lang = 'ko') => {
+  if (available === false) return lang === 'ko' ? '데이터 부족' : 'Unavailable'
+  const s = String(stance || 'NEUTRAL').toUpperCase()
+  if (lang === 'ko') return ({ BULLISH: '강세', BEARISH: '약세', NEUTRAL: '중립' }[s] || '중립')
+  return ({ BULLISH: 'Bullish', BEARISH: 'Bearish', NEUTRAL: 'Neutral' }[s] || 'Neutral')
+}
+const marketStateLabel = (state, lang = 'ko') => {
+  const key = String(state || '').toLowerCase()
+  const ko = {
+    range: '횡보', sideways: '횡보', strong_bull: '강한 상승', bull_pullback: '상승 중 조정',
+    bull_flush_recovery: '상승 추세 내 급락 회복', bull_under_stress: '상승 추세 압박', leveraged_bull: '레버리지 동반 상승',
+    recovery: '회복', flush_recovery: '급락 후 회복', leveraged_recovery: '레버리지 동반 회복',
+    bear_trend: '하락 추세', bear_rally: '하락 추세 내 반등', capitulation: '투매', distribution: '분배/약세 전환',
+    bear_acceleration: '하락 가속', range_break_shock: '횡보 이탈 급변', range_flush: '횡보 구간 급락',
+    bull_trend: '상승 추세', bull_transition: '상승 전환', bear_transition: '하락 전환', unknown: '확인 중',
+  }
+  if (lang === 'ko') return ko[key] || humanCode(key || '—')
+  return humanCode(key || '—')
+}
+const acuteStateLabel = (state, lang = 'ko') => {
+  const key = String(state || 'normal').toLowerCase()
+  const ko = {
+    normal: '평온', volatility_shock_up: '단기 급등', volatility_shock_down: '단기 급락', long_flush: '롱 청산',
+    leveraged_rally: '레버리지 상승', short_squeeze: '숏 스퀴즈', bearish_leverage: '하락 레버리지 확대', rebound_attempt: '반등 시도',
+  }
+  if (lang === 'ko') return ko[key] || marketStateLabel(key, lang)
+  return humanCode(key)
+}
+const riskReasonLabel = (reason, lang = 'ko') => {
+  if (lang !== 'ko') return reason
+  const r = String(reason || '')
+  const exact = {
+    'too many evidence sources unavailable': '확인할 수 없는 보조 데이터가 많아 비중을 제한했습니다.',
+    '1W historical-neighbor downside tail is severe': '1주 하방 시나리오가 매우 커 비중을 제한했습니다.',
+    '1W downside tail is elevated': '1주 하방 위험이 평소보다 커 비중을 제한했습니다.',
+    '1M downside tail is severe': '1개월 하방 시나리오가 매우 커 비중을 제한했습니다.',
+    'long flush detected; recovery is not assumed': '롱 청산이 감지됐지만 회복을 확정적으로 가정하지 않습니다.',
+    'severity-5 adverse market event': '강한 하락 이벤트가 감지돼 비중 상한을 낮췄습니다.',
+    'severity-4 adverse market event': '하락 이벤트가 감지돼 비중 상한을 낮췄습니다.',
+    'high agent disagreement': '전문 분석 간 의견 충돌이 커 비중을 보수적으로 제한했습니다.',
+  }
+  if (exact[r]) return exact[r]
+  if (r.startsWith('critical data unavailable:')) return `핵심 데이터가 없어 신규 비중 확대를 막았습니다: ${r.split(':').slice(1).join(':').trim()}`
+  if (r.startsWith('acute state:')) return `단기 급변 상태(${acuteStateLabel(r.split(':').slice(1).join(':').trim(), lang)})라 비중을 제한했습니다.`
+  return r
+}
 const initialExposure = () => { try { const v = localStorage.getItem(EXPOSURE_STORAGE_KEY); return v === null ? '' : v } catch (_) { return '' } }
 
 function Badge({ children, tone = 'neutral' }) { return <span className={`badge badge-${tone}`}>{children}</span> }
@@ -74,7 +120,7 @@ function CouncilPanel({ council, lang }) {
   const tone = (stance) => stance === 'BULLISH' ? 'positive' : stance === 'BEARISH' ? 'negative' : 'neutral'
   return <section className="council-panel">
     <div className="section-heading"><div><p className="eyebrow">{t.agentCouncil}</p><h3>{t.agentCouncilTitle}</h3></div><Badge tone={Number(council?.disagreement || 0) >= .55 ? 'warning' : 'neutral'}>{t.disagreement} {fmt(Number(council?.disagreement || 0) * 100, 0, lang)}%</Badge></div>
-    <div className="council-grid">{entries.map(([name, agent]) => <article key={name} className="council-agent"><div className="council-agent-head"><strong>{t.councilNames?.[name] || humanCode(name)}</strong><Badge tone={tone(agent?.stance)}>{agent?.stance || 'NEUTRAL'} · {fmt(Number(agent?.confidence || 0) * 100, 0, lang)}%</Badge></div><p>{agent?.thesis || '—'}</p><small>{t.counterpoint}: {agent?.counterargument || '—'}</small></article>)}</div>
+    <div className="council-grid">{entries.map(([name, agent]) => <article key={name} className={`council-agent council-${tone(agent?.stance)}`}><div className="council-agent-head"><strong>{t.councilNames?.[name] || humanCode(name)}</strong><Badge tone={agent?.available === false ? 'warning' : tone(agent?.stance)}>{councilStanceLabel(agent?.stance, agent?.available, lang)} · {fmt(Number(agent?.confidence || 0) * 100, 0, lang)}%</Badge></div><p>{agent?.thesis || '—'}</p><small><b>{t.counterpoint}</b> {agent?.counterargument || '—'}</small></article>)}</div>
   </section>
 }
 
@@ -86,9 +132,9 @@ function PortfolioPanel({ portfolio, governor, marketState, currentExposure, set
   return <section className="portfolio-panel">
     <div className="portfolio-main">
       <div className="section-heading"><div><p className="eyebrow">{t.portfolioPlan}</p><h3>{t.targetExposure} {fmt(portfolio?.target_exposure_pct, 1, lang)}%</h3></div><Badge tone={governor?.capped ? 'warning' : 'positive'}>{governor?.capped ? t.riskCapped : t.riskPassed}</Badge></div>
-      <div className="allocation-grid"><div><span>{t.currentExposure}</span><strong>{portfolio?.current_exposure_pct === null || portfolio?.current_exposure_pct === undefined ? t.notSet : `${fmt(portfolio.current_exposure_pct, 1, lang)}%`}</strong></div><div><span>{t.recommendedChange}</span><strong className={`text-${valueTone(change)}`}>{change === null || change === undefined ? '—' : `${signed(change, 1, lang)}%p`}</strong></div><div><span>{t.riskCeiling}</span><strong>{fmt(governor?.max_allowed_exposure_pct, 0, lang)}%</strong></div><div><span>{t.marketState}</span><strong>{humanCode(marketState?.regime || '—')}</strong><small>{humanCode(marketState?.acute_state || '')}</small></div></div>
+      <div className="allocation-grid"><div><span>{t.currentExposure}</span><strong>{portfolio?.current_exposure_pct === null || portfolio?.current_exposure_pct === undefined ? t.notSet : `${fmt(portfolio.current_exposure_pct, 1, lang)}%`}</strong></div><div><span>{t.recommendedChange}</span><strong className={`text-${valueTone(change)}`}>{change === null || change === undefined ? '—' : `${signed(change, 1, lang)}%p`}</strong></div><div><span>{t.riskCeiling}</span><strong>{fmt(governor?.max_allowed_exposure_pct, 0, lang)}%</strong></div><div><span>{t.marketState}</span><strong>{marketStateLabel(marketState?.regime || '—', lang)}</strong><small>{acuteStateLabel(marketState?.acute_state || 'normal', lang)}</small></div></div>
       <div className="exposure-control"><label><span>{t.myExposure}</span><div><input type="number" min="0" max="100" step="1" placeholder="0–100" value={currentExposure} onChange={(e) => setCurrentExposure(e.target.value)} /><b>%</b></div></label><button className="refresh-btn" disabled={loading} onClick={onApply}>{t.applyExposure}</button><small>{t.exposureHelp}</small></div>
-      {(governor?.reasons || []).length > 0 && <div className="governor-reasons"><strong>{t.governorReason}</strong><List items={governor.reasons} /></div>}
+      {(governor?.reasons || []).length > 0 && <div className="governor-reasons"><strong>{t.governorReason}</strong><List items={governor.reasons.map((x) => riskReasonLabel(x, lang))} /></div>}
     </div>
     <div className="levels-panel"><p className="eyebrow">{t.scenarioLevels}</p><div className="levels-grid"><div><span>{t.entryZone}</span><strong>{levels?.entry_zone?.length ? `₩${fmt(levels.entry_zone[0],0,lang)} – ₩${fmt(levels.entry_zone[1],0,lang)}` : '—'}</strong></div><div><span>{t.addWeakness}</span><strong>{levels?.add_on_weakness_anchor ? `₩${fmt(levels.add_on_weakness_anchor,0,lang)}` : '—'}</strong></div><div><span>{t.invalidation}</span><strong>{levels?.invalidation_anchor ? `₩${fmt(levels.invalidation_anchor,0,lang)}` : '—'}</strong></div><div><span>{t.takeProfitLevels}</span><strong>{levels?.take_profit_1 ? `₩${fmt(levels.take_profit_1,0,lang)} / ₩${fmt(levels.take_profit_2,0,lang)}` : '—'}</strong></div></div><small>{t.scenarioNote}</small></div>
   </section>
@@ -309,7 +355,7 @@ export default function App() {
       <button className="open-chart" onClick={() => setChartOpen(true)}>{t.chartOpen}</button>
 
       <section className="decision-card">
-        <div className="decision-copy"><p className="eyebrow">{t.currentDecision} · {analysis?.meta?.cached ? t.cachedAnalysis : t.freshAnalysis}</p><div className="state-badges"><Badge tone="neutral">{t.structure}: {humanCode(a?.market_state?.structural_regime || a?.regime?.regime || t.checking)}</Badge><Badge tone={String(a?.market_state?.acute_state || "").includes("down") || String(a?.market_state?.acute_state || "").includes("flush") ? "warning" : "neutral"}>{t.nowState}: {humanCode(a?.market_state?.acute_state || "normal")}</Badge></div><h2>{user?.headline || t.analyzingMarket}</h2><p>{user?.summary || t.analysisRefreshNote}</p></div>
+        <div className="decision-copy"><p className="eyebrow">{t.currentDecision} · {analysis?.meta?.cached ? t.cachedAnalysis : t.freshAnalysis}</p><div className="state-badges"><Badge tone="neutral">{t.structure}: {marketStateLabel(a?.market_state?.structural_regime || a?.regime?.regime || 'unknown', lang)}</Badge><Badge tone={String(a?.market_state?.acute_state || "").includes("down") || String(a?.market_state?.acute_state || "").includes("flush") ? "warning" : "neutral"}>{t.nowState}: {acuteStateLabel(a?.market_state?.acute_state || 'normal', lang)}</Badge></div><h2>{user?.headline || t.analyzingMarket}</h2><p>{user?.summary || t.analysisRefreshNote}</p></div>
         <div className="actions-grid"><Action label={t.existingHold} value={user?.actions?.hold} /><Action label={t.add} value={user?.actions?.add} /><Action label={t.takeProfit} value={user?.actions?.take_profit} /></div>
       </section>
       <PortfolioPanel portfolio={a?.portfolio} governor={a?.risk_governor} marketState={a?.market_state} currentExposure={currentExposure} setCurrentExposure={setCurrentExposure} onApply={applyExposure} lang={lang} loading={loading} />

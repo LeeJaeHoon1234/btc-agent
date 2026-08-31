@@ -161,9 +161,13 @@ def build_signal_registry(state) -> list[dict]:
         if y10 is not None: signals.append(_signal("S_US10Y", "macro", ["1W", "1M"], -1 if y10 > 0 else 1, min(1, abs(y10) / 4), f"미 10년물 최근 변화 {y10:+.2f}%", f"미국 장기금리가 최근 {'올랐습니다' if y10 > 0 else '내렸습니다'}.", y10, "hours/daily"))
 
     if flow.get("available") and _f(flow.get("latest_total_musd")) is not None:
-        val = _f(flow.get("latest_total_musd")); five = _f(flow.get("five_session_total_musd"))
+        val = _f(flow.get("latest_total_musd")); five = _f(flow.get("five_session_total_musd")); flow_date = str(flow.get("latest_date_label") or "최신 완료 세션")
         direction = 1 if val > 0 else -1 if val < 0 else 0
-        signals.append(_signal("S_ETF_FLOW", "flow", ["TODAY", "1W", "1M"], direction, min(1, abs(val) / 800), f"미국 현물 ETF 최신 순유입 {val:+.1f}M USD / 5세션 {five:+.1f}M USD" if five is not None else f"미국 현물 ETF 최신 순유입 {val:+.1f}M USD", f"미국 현물 ETF 자금은 최신 세션에서 {val:+.0f}M달러입니다.", val, "daily"))
+        flow_word = "순유입" if val > 0 else "순유출" if val < 0 else "순유입·유출 0"
+        simple = f"미국 현물 BTC ETF는 {flow_date}에 {abs(val):.0f}M달러 {flow_word}입니다."
+        if five is not None:
+            simple += f" 최근 5세션 합계는 {five:+.0f}M달러입니다."
+        signals.append(_signal("S_ETF_FLOW", "flow", ["TODAY", "1W", "1M"], direction, min(1, abs(val) / 800), f"미국 현물 ETF {flow_date} {val:+.1f}M USD / 5세션 {five:+.1f}M USD" if five is not None else f"미국 현물 ETF {flow_date} {val:+.1f}M USD", simple, val, "daily"))
 
     if sentiment.get("available") and _f(sentiment.get("value")) is not None:
         val = _f(sentiment.get("value")); direction = -1 if val >= 80 else 1 if val <= 25 else 0

@@ -237,7 +237,7 @@ class BTCAgentOrchestrator:
         state.council = build_agent_council(
             facts=state.facts, priors=state.deterministic_priors, forecasts=state.forecasts,
             market_state=state.market_state, data_health=state.data_health, events=state.events,
-            specialist_views=specialist_views,
+            specialist_views=specialist_views, language=language,
         )
         state.add_log("v5_agent_council")
         base_decision = build_base_decision(forecasts=state.forecasts, council=state.council, market_state=state.market_state)
@@ -287,7 +287,7 @@ class BTCAgentOrchestrator:
                 signals=state.signals,
                 regime=str(state.regime.get("regime") or "unknown"),
                 source=source, forecasts=state.forecasts, market_state=state.market_state,
-                portfolio=state.portfolio, model_version="5.0.0",
+                portfolio=state.portfolio, model_version="5.0.1",
             )
             state.memory = prediction_journal.memory_context(limit=8)
             state.track_record = prediction_journal.performance_summary()

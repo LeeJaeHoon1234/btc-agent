@@ -3,6 +3,33 @@ from __future__ import annotations
 from src.agents.llm_client import call_json_agent, llm_available
 
 
+def _ko_market_label(value: str) -> str:
+    return {
+        "range": "횡보", "strong_bull": "강한 상승", "bull_pullback": "상승 중 조정",
+        "bull_flush_recovery": "상승 추세 내 급락 회복", "bull_under_stress": "상승 추세 압박",
+        "leveraged_bull": "레버리지 동반 상승", "recovery": "회복", "bear_trend": "하락 추세",
+        "bear_rally": "하락 추세 내 반등", "capitulation": "투매", "distribution": "약세 전환",
+        "bear_acceleration": "하락 가속", "range_break_shock": "횡보 이탈 급변", "range_flush": "횡보 구간 급락",
+    }.get(str(value or "").lower(), str(value or "확인 중").replace("_", " "))
+
+
+def _ko_risk_reason(reason: str) -> str:
+    mapping = {
+        "too many evidence sources unavailable": "확인할 수 없는 보조 데이터가 많습니다.",
+        "1W historical-neighbor downside tail is severe": "1주 하방 시나리오가 매우 큽니다.",
+        "1W downside tail is elevated": "1주 하방 위험이 평소보다 큽니다.",
+        "1M downside tail is severe": "1개월 하방 시나리오가 매우 큽니다.",
+        "long flush detected; recovery is not assumed": "롱 청산 이후 회복을 아직 확정할 수 없습니다.",
+        "severity-5 adverse market event": "강한 하락 이벤트가 감지됐습니다.",
+        "severity-4 adverse market event": "하락 이벤트가 감지됐습니다.",
+        "high agent disagreement": "전문 분석 간 의견 충돌이 큽니다.",
+    }
+    if reason in mapping: return mapping[reason]
+    if str(reason).startswith("critical data unavailable:"): return "핵심 데이터가 일부 누락됐습니다."
+    if str(reason).startswith("acute state:"): return "단기 급변 상태라 비중을 보수적으로 봅니다."
+    return str(reason)
+
+
 def _fallback(*, horizons: dict, forecasts: dict, portfolio: dict, risk_governor: dict, market_state: dict, language: str) -> dict:
     now = horizons.get("NOW", {}); f1w = forecasts.get("1W", {})
     target = portfolio.get("target_exposure_pct"); delta = portfolio.get("recommended_change_pct")
@@ -17,9 +44,10 @@ def _fallback(*, horizons: dict, forecasts: dict, portfolio: dict, risk_governor
         headline = now.get("headline") or "실시간 시장 구조를 다시 평가하고 있습니다."
         if delta is None: action = f"목표 비중 {target:.0f}%" if target is not None else "유지"
         else: action = f"{delta:.0f}%p 늘리기" if delta > 1 else f"{abs(delta):.0f}%p 줄이기" if delta < -1 else "유지"
-        summary = f"1주 기대수익 {float(f1w.get('expected_return_pct',0)):+.1f}%, 상승확률 {float(f1w.get('probability_up_pct',50)):.0f}%입니다. Risk Governor 상한은 {float(risk_governor.get('max_allowed_exposure_pct',100)):.0f}%입니다."
+        summary = f"1주 기대수익 {float(f1w.get('expected_return_pct',0)):+.1f}%, 상승확률 {float(f1w.get('probability_up_pct',50)):.0f}%입니다. 리스크 상한은 {float(risk_governor.get('max_allowed_exposure_pct',100)):.0f}%입니다."
         actions={"hold":"리스크 상한 안에서 유지","add":action if delta is None or delta>=0 else "기다림","take_profit":"현재 비중이 목표보다 높을 때만 축소 검토"}
     market_label = str((market_state or {}).get("regime") or "unknown").replace("_", " ")
+    if language != "en": market_label = _ko_market_label(market_label)
     disagreement = float((risk_governor or {}).get("max_allowed_exposure_pct", 100) or 100)
     levels = (portfolio or {}).get("levels") or {}
     if language == "en":
@@ -35,7 +63,7 @@ def _fallback(*, horizons: dict, forecasts: dict, portfolio: dict, risk_governor
             f"1주 분포는 상승확률 {float(f1w.get('probability_up_pct',50)):.0f}%, 기대수익 {float(f1w.get('expected_return_pct',0)):+.1f}%입니다.",
             f"현재 시장 국면은 {market_label}입니다.",
         ]
-        watch = list(risk_governor.get("reasons", [])[:2])
+        watch = [_ko_risk_reason(x) for x in risk_governor.get("reasons", [])[:2]]
         if levels.get("invalidation_anchor"):
             watch.append(f"약 ₩{float(levels['invalidation_anchor']):,.0f} 무효화 기준 부근에서는 시나리오를 다시 봅니다.")
     return {"headline":headline,"summary":summary,"decision":action,"actions":actions,"why":why[:3],"watch":watch[:3],"source":"v5_fallback","language":language}

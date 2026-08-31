@@ -23,7 +23,7 @@
 
 ## What is BitScope?
 
-**BitScope V4.1** is a real-time, multi-agent Bitcoin market analysis and decision-support system. It combines **live BTC market microstructure, technical indicators, derivatives, macro data, news/sentiment, on-chain context, LightGBM, and LLM reasoning** into one readable answer across five different horizons:
+**BitScope V5.0.1** is a real-time, multi-agent Bitcoin market analysis and portfolio decision-support system. It combines **live BTC market microstructure, technical indicators, derivatives, macro data, news/sentiment, on-chain context, LightGBM, and LLM reasoning** into one readable answer across five different horizons:
 
 **NOW · TODAY · 1W · 1M · 1Y**
 
@@ -35,15 +35,15 @@ The project is intentionally a **decision-support/research system**, not an auto
 
 ## Why this project is different
 
-| Problem | BitScope V4.1 approach |
+| Problem | BitScope V5.0.1 approach |
 |---|---|
 | A daily signal misses an intraday crash or rebound | Live Upbit WebSocket + intraday indicators + event detection |
-| One score hides why the market looks bullish/bearish | Evidence registry + domain-specific specialists |
+| One score hides why the market looks bullish/bearish | Raw Fact Registry + independent specialist council; deterministic priors are fallback-only |
 | `NOW` and `1M` should not use the same reasoning | Separate horizon analysis for NOW / TODAY / 1W / 1M / 1Y |
-| LLMs can invent or alter market facts | Deterministic calculations first; LLMs reason only from supplied evidence |
+| LLMs can invent or alter market facts | Numerical forecasts are computed outside the LLM; LLMs receive raw facts and bounded decision authority |
 | A live price can be fresh while the AI analysis is stale | Price freshness and AI-analysis freshness are displayed separately |
 | Raw metrics like `1H -0.3%` are hard to read | Plain-language interpretation + intraday range + sparklines |
-| Agents repeat the same mistakes every day | Prediction Journal + horizon-specific outcome evaluation + Reflection Memory |
+| Agents repeat the same mistakes every day | Live Forecast Track Record + Brier/interval evaluation + Reflection Memory |
 | Historical feedback can overfit current decisions | Current market data always outranks memory |
 
 ## Live experience
@@ -76,45 +76,43 @@ BitScope ships as a single bilingual application. Use the **KR | EN** toggle in 
 
 ```mermaid
 flowchart TD
-    A[Live Market Data] --> B[Deterministic Calculations]
-    A2[Derivatives] --> B
-    A3[Macro / ETF / News] --> B
-    A4[On-chain / Sentiment] --> B
+    A[Live / Daily / External Market Data] --> F[Raw Fact Registry]
+    F --> P[Forecast Distributions\nNOW · TODAY · 1W · 1M · 1Y]
+    F --> R[Two-speed Market State]
 
-    B --> C[Data Sanity Checks]
-    C --> D[Evidence Registry]
+    F --> C1[Technical]
+    F --> C2[Derivatives]
+    F --> C3[On-chain / ETF Flow]
+    F --> C4[Macro / News]
+    F --> C5[Historical Analogs]
+    C1 --> C[Independent Agent Council]
+    C2 --> C
+    C3 --> C
+    C4 --> C
+    C5 --> C
 
-    D --> E1[Market Specialist]
-    D --> E2[Derivatives Specialist]
-    D --> E3[Macro Specialist]
-    D --> E4[News / Narrative Specialist]
-    D --> E5[Historical / ML Context]
-
-    M[Reflection Memory] --> H[Horizon Analyst]
-    E1 --> H
-    E2 --> H
-    E3 --> H
-    E4 --> H
-    E5 --> H
-
-    H --> N[NOW]
-    H --> T[TODAY]
-    H --> W[1W]
-    H --> MO[1M]
-    H --> Y[1Y]
-
-    N --> C2[Critic]
-    T --> C2
-    W --> C2
-    MO --> C2
-    Y --> C2
-
-    C2 --> U[Plain-language User View]
-    U --> J[Prediction Journal]
-    J --> O[Realized Outcome]
-    O --> R[Reflection Engine]
-    R --> M
+    P --> Q[Quant Decision]
+    C --> Q
+    R --> Q
+    Q --> M[Bounded Meta Agent\nmax ±10pp challenge]
+    M --> G[Hard Risk Governor]
+    G --> O[Portfolio Plan\ntarget exposure + scenario anchors]
+    O --> U[Plain-language UI]
+    U --> J[Live Forecast Track Record]
+    J --> E[Brier / Return Error / Interval Coverage]
+    E --> X[Reflection Memory]
 ```
+
+### V5 autonomy boundary
+
+BitScope V5 deliberately separates **freedom to analyze** from **authority to allocate capital**:
+
+- **Raw facts** do not carry hidden bullish/bearish labels into the LLM layer.
+- **Deterministic priors** remain available only as safe fallbacks when a specialist is unavailable.
+- **Forecast distributions** are numerical anchors computed outside the LLM.
+- The **Meta Agent** may challenge a quantitative target, but only inside a bounded range.
+- The **Risk Governor** is non-LLM and can cap/block exposure; it can never increase it.
+- Missing data is shown as unavailable rather than silently treated as neutral confirmation.
 
 ### Design principle
 
@@ -124,9 +122,9 @@ Complex inside, simple outside.
 
 The user should not have to inspect 30 indicators to understand the result. The system may calculate many signals internally, but the main UI surfaces only the evidence that materially matters to the current horizon.
 
-## V4.1: the agent can evaluate its past decisions
+## V5: the agent can evaluate its forecasts and past decisions
 
-Every horizon decision can be written to a **Prediction Journal** with its timestamp, stance, confidence, market regime and selected evidence.
+Every live horizon forecast can be written to a **Prediction Journal** with its timestamp, probability-up, expected return, q10/q90 interval, confidence, market state, model version and approved portfolio target.
 
 After the relevant horizon matures, BitScope compares the original decision with the realized market move:
 
@@ -146,7 +144,7 @@ Structured lesson memory
 Relevant context for a future similar market
 ```
 
-Evaluation windows are intentionally horizon-specific:
+Evaluation windows are intentionally horizon-specific. V5 additionally evaluates probability calibration and forecast intervals:
 
 | Decision | Evaluation delay |
 |---|---:|
@@ -155,6 +153,8 @@ Evaluation windows are intentionally horizon-specific:
 | 1W | 7 days |
 | 1M | 30 days |
 | 1Y | 365 days |
+
+Tracked forecast metrics include **direction accuracy, Brier score, expected-return error, and q10–q90 interval coverage**. These metrics are kept separate from engineering tests: a working pipeline does not imply a profitable forecasting edge.
 
 Reflection is a **weak prior**, not an automatic parameter optimizer. It cannot silently change RSI thresholds, model weights, prices or realized returns. Fewer than three historical samples are treated as insufficient evidence.
 
@@ -186,6 +186,8 @@ BitScope is designed around the assumption that **market data and LLM output can
 
 The live layer validates, among other things:
 
+- strict parsing of completed US spot-BTC ETF flow rows and their final Total column
+- explicit unavailable status when derivatives or other external sources fail
 - valid/positive prices
 - `high >= low`
 - current price consistency with the reported intraday range
@@ -194,6 +196,10 @@ The live layer validates, among other things:
 - source freshness and unavailable-data states
 
 LLM components receive structured evidence IDs and are instructed not to invent or modify market values. If an LLM, source, quota or network call is unavailable, deterministic fallbacks keep the API usable.
+
+## Current validation status
+
+V5 has architecture/regression tests and a strict walk-forward validation harness, but **forecasting profitability is not assumed or claimed**. Real BTC walk-forward results and prospective live track records are the evidence used to judge whether the forecast layer has an edge. External sources such as derivatives data can be temporarily unavailable; the UI surfaces this explicitly and the Risk Governor reduces confidence/caps exposure when data quality deteriorates.
 
 ## Tech stack
 

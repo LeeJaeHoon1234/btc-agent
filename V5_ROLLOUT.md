@@ -2,7 +2,7 @@
 
 ## Release
 
-`5.0.0`
+`5.0.1`
 
 ## Upgrade strategy
 
@@ -70,7 +70,7 @@ After CI passes, merge to the branch used by Render and GitHub Pages.
 
 ## Production checks
 
-- `/health` reports `5.0.0`
+- `/health` reports `5.0.1`
 - Demo analysis includes all V5 fields
 - Live price still updates independently of the slow AI layer
 - Entering a current BTC exposure changes only the portfolio delta/cache key, not market facts

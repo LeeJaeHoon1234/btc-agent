@@ -7,7 +7,7 @@ export const DEFAULT_QUESTIONS = {
 
 export const I18N = {
   ko: {
-    brandTagline: 'V5 · Forecast + Agent Council + Risk Governor',
+    brandTagline: 'V5 · 예측분포 + 전문 분석 + 리스크 관리',
     analyze: 'AI 새로 분석', analyzing: '분석 중…', analysisError: '분석 오류',
     checkingValues: '값을 다시 확인하는 중', extraChecks: (n) => `추가 점검 ${n}건`,
     price: '가격', ai: 'AI', marketName: 'KRW-BTC · Upbit', usdRef: 'BTC-USD 참고가', checking: '확인 중', prevClose: '전일 종가 대비',
@@ -16,14 +16,14 @@ export const I18N = {
     fromDayLow: '일중 저점에서', recoveredFromLow: '저점 이후 회복한 폭', fromDayHigh: '일중 고점에서', distanceToHigh: '고점까지 남은 거리',
     chartOpen: '가격 차트 크게 보기 · 1H / 4H / 1D / 3D ↗',
     currentDecision: '현재 판단', cachedAnalysis: '캐시된 AI 분석', freshAnalysis: '새 AI 분석',
-    structure: '큰 구조', nowState: '지금 상태', portfolioPlan: '포트폴리오 · Risk Governor', targetExposure: '목표 BTC 비중', currentExposure: '현재 비중', recommendedChange: '권장 변화', riskCeiling: '리스크 상한', marketState: '시장 국면', notSet: '미입력', myExposure: '내 현재 BTC 비중', applyExposure: '비중 반영해 재분석', exposureHelp: '입력하지 않아도 시장 판단은 가능하고, 입력하면 목표 비중과 증감폭까지 계산합니다.', riskCapped: 'Risk cap 적용', riskPassed: 'Risk check 통과', governorReason: '비중을 제한한 이유',
+    structure: '큰 구조', nowState: '지금 상태', portfolioPlan: '포트폴리오 · 리스크 관리', targetExposure: '목표 BTC 비중', currentExposure: '현재 비중', recommendedChange: '권장 변화', riskCeiling: '리스크 상한', marketState: '시장 국면', notSet: '미입력', myExposure: '내 현재 BTC 비중', applyExposure: '비중 반영해 재분석', exposureHelp: '입력하지 않아도 시장 판단은 가능하고, 입력하면 목표 비중과 증감폭까지 계산합니다.', riskCapped: 'Risk cap 적용', riskPassed: 'Risk check 통과', governorReason: '비중을 제한한 이유',
     scenarioLevels: '시나리오 기준 가격', entryZone: '관심 진입 구간', addWeakness: '눌림 추가관찰', invalidation: '시나리오 무효화', takeProfitLevels: '상단 시나리오', scenarioNote: '예측분포에서 계산한 시나리오 앵커이며 자동 주문 가격이 아닙니다.',
     analyzingMarket: '시장 데이터를 분석하고 있습니다.', analysisRefreshNote: '실시간 가격은 계속 갱신되며, AI 분석은 별도 주기로 갱신됩니다.',
     existingHold: '기존 보유', add: '추가 매수', takeProfit: '익절',
     refreshNeeded: '시장 상태가 AI 분석 시점보다 많이 달라졌거나 데이터 재검증이 필요합니다.', recalcAI: 'AI 판단도 다시 계산',
     detectedMove: '지금 포착된 움직임', perspective: '관점', analyzingShort: '분석 중', positivePoints: '좋게 보는 점', riskPoints: '조심할 점',
     expectedReturn: '기대수익', probabilityUp: '상승확률', downsideRange: '하단 10%', upsideRange: '상단 10%', forecastConfidence: '분포 신뢰도', analogSamples: '유사 표본', stateModel: '상태모델', centralRange: '예상 분포 10–90%', forecastUnavailable: '이 시간축 예측분포를 계산할 수 없습니다.',
-    agentCouncil: 'Agent Council', agentCouncilTitle: '전문 Agent들이 독립적으로 본 시장', disagreement: '의견 충돌', counterpoint: '반대 근거', councilNames: { technical: '기술적 구조', derivatives: '파생시장', onchain_flow: '온체인·자금흐름', macro_news: '거시·뉴스', historical: '과거 유사장', risk: '리스크' },
+    agentCouncil: '전문 분석 의견', agentCouncilTitle: '각 영역을 따로 본 뒤 서로 비교합니다', disagreement: '의견 충돌', counterpoint: '틀릴 수 있는 조건:', councilNames: { technical: '기술적 구조', derivatives: '파생시장', onchain_flow: '온체인·자금흐름', macro_news: '거시·뉴스', historical: '과거 유사장', risk: '리스크' },
     noPositive: '뚜렷한 긍정 신호 없음', noRisk: '뚜렷한 위험 신호 없음', keyAI: 'AI가 보는 핵심', waitResult: '분석 결과를 기다리는 중입니다.',
     recheckWhen: '다음에 바뀌면 다시 보기', calculating: '조건을 계산 중입니다.', dataStatus: '데이터 상태', dataStatusNote: '가격·달러 참고가·AI 분석의 갱신 시점을 분리해서 봅니다.',
     advanced: '상세 분석 · 지표 · 자기평가 기록 보기', coreEvidence: '핵심 근거', noEvidence: '근거 없음', reflectionMemory: 'Reflection Memory', resolved: '해결', pending: '평가 대기',

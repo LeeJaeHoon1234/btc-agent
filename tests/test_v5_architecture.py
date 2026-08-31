@@ -33,6 +33,29 @@ def test_specialist_stance_beats_deterministic_prior_when_available():
     assert council["agents"]["derivatives"]["source"] == "independent_specialist"
 
 
+
+def test_explicit_technical_neutral_stance_is_not_overridden_by_score():
+    council = build_agent_council(
+        facts=[{"id": "t1", "domain": "technical", "horizons": ["NOW"], "fact": "technical", "simple": "기술", "value": 1, "freshness": "live"}],
+        priors={"t1": {"direction": 1, "strength": 1.0}},
+        forecasts={"1W": {"q10_return_pct": -4}},
+        market_state={"acute_state": "normal"},
+        data_health={"price": {"status": "ok"}}, events=[],
+        specialist_views={"technical": {"stance": "NEUTRAL", "raw_score": 63, "score": 26, "confidence": 0.75, "summary": "Technical stance is neutral."}},
+        language="ko",
+    )
+    assert council["agents"]["technical"]["stance"] == "NEUTRAL"
+    assert "63/100" in council["agents"]["technical"]["thesis"]
+
+
+def test_etf_parser_reads_final_total_cell_and_parenthesis_as_negative():
+    from src.tools.research.flow_tool import _parse_rows
+    html = """<table><tr><td>27 Aug 2026</td><td>277.6</td><td>(83.6)</td><td>242.3</td></tr>
+    <tr><td>28 Aug 2026</td><td>(33.4)</td><td>0.0</td><td>(201.9)</td></tr></table>"""
+    rows = _parse_rows(html)
+    assert rows[-1]["date_label"] == "28 Aug 2026"
+    assert rows[-1]["total_musd"] == -201.9
+
 def test_risk_governor_is_direction_aware_and_never_increases_exposure():
     base = dict(
         proposed_exposure_pct=80,

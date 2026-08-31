@@ -49,6 +49,8 @@ def _technical_expert(core_context: dict) -> dict:
     score = max(-100.0, min(100.0, (raw_score - 50) * 2))
     return {
         "available": True,
+        "stance": str(stance).upper(),
+        "raw_score": raw_score,
         "score": score,
         "confidence": 0.75,
         "summary": f"Technical stance is {stance} with score {raw_score:.1f}/100.",
