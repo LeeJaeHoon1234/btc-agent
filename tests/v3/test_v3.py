@@ -53,7 +53,7 @@ def test_v3_demo_contract_contains_autonomous_research():
     assert response.status_code == 200, response.text
     body = response.json()
     analysis = body["analysis"]
-    assert body["meta"]["version"] == "3.1.0"
+    assert body["meta"]["version"] == "4.0.0"
     assert analysis["plan"]["selected_skills"]
     assert "derivatives" in analysis["experts"]
     assert "macro" in analysis["experts"]
@@ -63,7 +63,7 @@ def test_v3_demo_contract_contains_autonomous_research():
     assert analysis["research_adjustment"]["bounded"] is True
     assert abs(analysis["research_adjustment"]["entry_delta"]) <= 8
     assert len(analysis["evidence"]) > 0
-    assert "planner_agent" in analysis["logs"]
+    assert analysis["plan"]["source"] == "v4_deterministic"
     assert "specialist_research" in analysis["logs"]
 
 

@@ -58,10 +58,11 @@ def _technical_expert(core_context: dict) -> dict:
     }
 
 
-def run_research(question: str, plan: dict, state, source: str = "live") -> tuple[dict, dict]:
+def run_research(question: str, plan: dict, state, source: str = "live", raw_inputs: dict | None = None) -> tuple[dict, dict]:
     selected = set(plan.get("selected_skills", []))
     core = state.compact_context()
     demo = _demo_raw() if source == "demo" else {}
+    supplied = raw_inputs or {}
     experts: dict = {}
 
     if "technical" in selected:
@@ -71,13 +72,13 @@ def run_research(question: str, plan: dict, state, source: str = "live") -> tupl
     with ThreadPoolExecutor(max_workers=4) as pool:
         if "derivatives" in selected:
             ctx = copy_context()
-            jobs[pool.submit(ctx.run, run_derivatives_agent, core, demo.get("derivatives"))] = "derivatives"
+            jobs[pool.submit(ctx.run, run_derivatives_agent, core, supplied.get("derivatives", demo.get("derivatives")))] = "derivatives"
         if "macro" in selected:
             ctx = copy_context()
-            jobs[pool.submit(ctx.run, run_macro_agent, core, demo.get("macro"))] = "macro"
+            jobs[pool.submit(ctx.run, run_macro_agent, core, supplied.get("macro", demo.get("macro")))] = "macro"
         if "news" in selected:
             ctx = copy_context()
-            jobs[pool.submit(ctx.run, run_news_agent, question, core, demo.get("news"))] = "news"
+            jobs[pool.submit(ctx.run, run_news_agent, question, core, supplied.get("news", demo.get("news")))] = "news"
         if "historical" in selected:
             ctx = copy_context()
             jobs[pool.submit(ctx.run, run_historical_agent, state.market_df, core)] = "historical"

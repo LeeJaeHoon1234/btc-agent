@@ -1,433 +1,227 @@
-# BTC Agent V3.1 — Autonomous Research & Decision System
+# BTC Agent V4
 
-> **Planner × Specialist Skills × External Tools × Retrieval/RAG × Rule/ML × Confidence Gate × Critic**
+BTC Agent V4 is a multi-horizon Bitcoin decision-support system designed around one principle:
 
-A BTC decision-support system that does more than run a fixed indicator pipeline. V3 receives a research question, decides which specialist skills are needed, gathers external evidence, retrieves relevant historical/news context, synthesizes the findings, and then combines them with a bounded Rule/ML decision engine.
+> **Complex inside, simple outside.**
 
-**Live service:** `https://LeeJaeHoon1234.github.io/btc-agent/`
+The backend can inspect many market, derivatives, macro, flow, sentiment, network and model signals, while the main UI answers only the questions a user actually needs:
 
----
+- What is happening **right now**?
+- What does **today** look like?
+- What is the view for **1 week / 1 month / 1 year**?
+- For an existing position, should I **hold, add, or consider taking profit**?
+- What would make the view change?
 
-## Why I Built It
+This is a research/decision-support project, not an automated trading system or a promise of returns.
 
-A single model is not enough for investment decisions.
+## What changed from V3.1
 
-- **Rules** are explicit and interpretable, but depend on manually chosen thresholds.
-- **ML** can learn non-linear patterns, but its probability is unreliable when validation performance is weak or the market regime changes.
-- **LLMs** are good at research synthesis and resolving conflicting evidence, but should not be allowed to invent market facts or directly override deterministic signals.
-- **Real decisions require research**: derivatives positioning, macro conditions, recent catalysts, and historical analogs often matter as much as RSI or moving averages.
+V3.1 exposed too much of the internal agent architecture on the main screen and its primary market model was daily-data oriented. V4 separates the system into different speeds and hides implementation detail from the default UI.
 
-V3 therefore separates **fact collection, deterministic calculation, retrieval, specialist interpretation, routing, synthesis, criticism, and final decision**.
+### Real-time / fast layer
 
----
+- Browser-side Upbit WebSocket ticker for a genuinely moving BTC/KRW price.
+- Backend `/api/v1/live` snapshot cached for ~10 seconds.
+- Upbit 1-minute + 5-minute candles.
+- Recent trades and aggressive buy/sell balance.
+- Order-book imbalance and spread.
+- 5m / 15m / 1h / 4h / 24h price movement.
+- Rebound from the 24h low and distance from the 24h high.
+- VWAP gap, RSI, EMA, MACD, Bollinger position, ATR, realized volatility and volume anomaly metrics.
+- Event detector for fast shocks, flush/rebound, high rejection, volume spikes and leverage events.
 
-## V3 Architecture
+### Slow / structural layer
 
-```text
-User Research Question
-        │
-        ▼
-┌──────────────────────────┐
-│      Planner Agent       │
-│ selects required skills  │
-└────────────┬─────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────────┐
-│              Specialist Research Layer              │
-│                                                     │
-│ Technical   Derivatives   Macro   News/RAG   History│
-│    │            │          │        │          │     │
-│    └────────────┴──────────┴────────┴──────────┘     │
-│                         │                           │
-│                 Evidence Registry                  │
-└─────────────────────────┬───────────────────────────┘
-                          │
-                          ▼
-                 Research Synthesizer
-                          │
-                          ▼
-                 Bounded Research Engine
-                 (max ±8 score impact)
-                          │
-       ┌──────────────────┴──────────────────┐
-       │                                     │
-       ▼                                     ▼
-Rule / Technical Engine                LightGBM Model
-       │                                     │
-       └──────────────────┬──────────────────┘
-                          ▼
-                   Confidence Gate
-                          │
-                  Fast / Deep Route
-                          │
-                 Risk + Decision Agent
-                          │
-                      Critic Loop
-                          │
-                    Position Engine
-                          │
-                  Explanation Agent
-                          │
-                          ▼
-                    React Web UI
-```
+The existing daily core remains available and was expanded with:
 
----
-
-## Skill-Based Agent Design
-
-Each specialist is defined by an explicit `SKILL.md` rather than only a Python filename.
-
-```text
-skills/
-├── technical/SKILL.md
-├── derivatives/SKILL.md
-├── macro/SKILL.md
-├── news/SKILL.md
-├── historical/SKILL.md
-└── risk/SKILL.md
-```
-
-A skill describes the specialist's mission, available tools, analysis procedure, guardrails, and expected output. The `SkillRegistry` loads these files at runtime, and the Planner can route a question to only the skills that are needed.
-
-When LLM access is disabled, the same orchestration continues with deterministic fallbacks. When LLM access is enabled, the skill instructions become the specialist system context. `USE_SPECIALIST_LLM` can disable per-specialist LLM calls while keeping Planner/Synthesis reasoning available.
-
----
-
-## Autonomous Planner
-
-The system no longer runs every research module blindly.
-
-Examples:
-
-```text
-"Is this rally a short squeeze?"
-→ Technical + Derivatives + Risk
-
-"Why is BTC rising despite a stronger dollar?"
-→ Technical + Derivatives + Macro + News + Risk
-
-"Does this look like a cycle top?"
-→ Technical + Historical Retrieval + Macro + Derivatives + Risk
-```
-
-With LLM enabled, the Planner chooses the route from the available skill catalog. Without LLM, a deterministic intent router provides a safe fallback.
-
----
-
-## Specialist Agents
-
-### 1. Technical Analyst
-
-Uses the original deterministic feature layer:
-
+- MA20 / 50 / 60 / 100 / 111 / 200 / 350
+- EMA9 / 12 / 21 / 26 / 50 / 200
 - RSI14
-- MA20 / MA200 gaps and slopes
-- volume ratio
-- 3D / 7D / 30D returns
-- volatility and drawdown
+- MACD
+- Bollinger Bands
+- ATR
+- ADX / DI
+- Stochastic
+- OBV
+- volume ratio / volume z-score
+- multi-period returns
+- multi-period volatility
+- drawdowns
+- cycle proxies
+- existing 30-day LightGBM model as a **supporting** signal only
+- historical similarity retrieval
 
-This remains the stable core of the system.
+## Multi-horizon analysis
 
-### 2. Derivatives Analyst
+V4 analyzes five horizons independently:
 
-Uses public Binance USD-M Futures market-data endpoints to examine:
+| Horizon | Main question |
+|---|---|
+| NOW | What is happening in the market right now? |
+| TODAY | What kind of intraday session is this? |
+| 1W | What is the short-term direction? |
+| 1M | What does the medium-term setup look like? |
+| 1Y | Where are we in the broader structure/cycle? |
 
-- funding rate
-- current open interest
-- 24h open-interest change
-- global long/short ratio
-- top-trader position ratio
-- taker buy/sell ratio
+The same indicator is not forced to mean the same thing at every horizon. For example, an overbought 1-minute RSI during a sharp rebound is not automatically interpreted as a one-month market top.
 
-It classifies the derivatives regime into states such as:
+## External evidence
+
+V4 is best-effort and never converts missing data into fake neutral evidence.
+
+- **Derivatives:** Binance USD-M Futures primary; Bybit Linear fallback for funding/open interest and available positioning data.
+- **Macro:** FRED when configured, with the existing public fallback.
+- **News:** recent Bitcoin-focused retrieval through Google News RSS.
+- **US spot-BTC ETF flow:** public Farside snapshot (best-effort parser; marked unavailable if page structure changes).
+- **Sentiment:** Alternative.me Fear & Greed.
+- **Bitcoin network:** Blockchain.com stats + mempool.space fee data.
+- **Valuation on-chain metrics:** MVRV/SOPR/LTH-STH metrics are explicitly marked missing unless a real provider is added. V4 does not fabricate them.
+
+## AI autonomy: bounded, not fake autonomy
+
+V4 deliberately separates facts from interpretation.
 
 ```text
-HEALTHY_BULL
-LEVERAGED_BULL
-SHORT_SQUEEZE
-LONG_FLUSH
-BEARISH_LEVERAGE
-NEUTRAL
+Upbit / derivatives / macro / news / flow / network
+                         │
+                         ▼
+              deterministic calculations
+                         │
+                         ▼
+                   signal registry
+              (facts + source + horizon)
+                         │
+                         ▼
+       specialist LLMs + cross-domain synthesis
+                         │
+                         ▼
+             V4 Horizon Analyst (LLM)
+             NOW / TODAY / 1W / 1M / 1Y
+                         │
+                         ▼
+                 independent Critic
+                         │
+                         ▼
+              Plain-language Writer
+                         │
+                         ▼
+                   React dashboard
 ```
 
-### 3. Macro Analyst
+Python owns exact numbers, timestamps, API status and indicator calculations. The V4 Horizon Analyst is allowed to decide **which evidence matters most**, reconcile conflicting signals and produce different conclusions by horizon. It may only cite IDs from the supplied signal registry; it cannot invent market values.
 
-Evaluates whether the dollar and U.S. Treasury yield backdrop is helping or hurting BTC.
+The default LLM budget remains at most 8 calls per full analysis. With specialist LLMs enabled, the normal upper bound is:
 
-Primary optional source:
+1. derivatives specialist
+2. macro specialist
+3. news specialist
+4. historical specialist
+5. cross-domain synthesis
+6. V4 horizon analyst
+7. independent critic
+8. plain-language writer
 
-- FRED API (`FRED_API_KEY`)
+If the LLM quota is unavailable, the entire pipeline still returns deterministic fallback horizons and a usable UI.
 
-Fallback:
+## Frontend philosophy
 
-- public market-chart data for the dollar index and U.S. 10Y yield
+The main page no longer exposes Planner, research delta, entry score, expert score and evidence logs as the primary experience.
 
-Unavailable data is explicitly marked as unavailable rather than silently treated as neutral.
+The default page shows:
 
-### 4. News Research + RAG Agent
+1. genuinely live price and update age
+2. current market event
+3. simple hold / add / take-profit actions
+4. NOW / TODAY / 1W / 1M / 1Y tabs
+5. a few plain-language reasons
+6. what to watch next
+7. data-source freshness/status
 
-Searches recent public BTC news, deduplicates the results, and retrieves only items relevant to the current research question using TF-IDF retrieval.
+Raw metrics, old core scores, model metadata, research results, critic output and execution trace live under **Detailed analysis**.
 
-The agent preserves:
+## API
 
-- headline
-- source
-- publication time
-- URL
-- retrieval score
+### `GET /health`
+Service health and V4 capabilities.
 
-The final UI exposes these records through the **Evidence Registry** instead of presenting uncited LLM claims.
+### `GET /api/v1/live?market=KRW-BTC`
+Cheap fast-layer snapshot. No LLM call. Intended for frequent polling/fallback when the browser WebSocket is unavailable.
 
-### 5. Historical RAG Agent
+### `POST /api/v1/analyze`
+Full multi-horizon analysis.
 
-The original similarity logic is extended into a historical retrieval layer.
-
-Current BTC state is matched against past states using standardized features such as:
-
-- momentum
-- moving-average structure
-- volume
-- volatility
-- drawdown
-
-For each retrieved case, the system records forward 7D and 30D returns. The aggregate uses the median and dispersion rather than cherry-picking a single historical example.
-
----
-
-## Evidence Registry
-
-One of the main V3 changes is that specialist conclusions are no longer just strings passed between agents.
-
-Each research item can be stored as structured evidence:
+Example request:
 
 ```json
 {
-  "id": "E7",
-  "agent": "news",
-  "kind": "source",
-  "title": "...",
-  "claim": "...",
-  "url": "...",
-  "source": "...",
-  "confidence": 0.68
+  "market": "KRW-BTC",
+  "history_years": 8,
+  "source": "live",
+  "question": "현재 BTC를 NOW, TODAY, 1W, 1M, 1Y 관점에서 분석하고 보유·추가매수·익절 대응을 판단해줘."
 }
 ```
 
-This gives the final Decision/Critic layer a traceable record of where a claim came from.
+### `GET /api/v1/usage`
+Anonymous process-local request/LLM quota counters.
 
----
-
-## Research Cannot Overwrite the Core Engine
-
-A major design constraint is that external research and LLM reasoning are **bounded**.
-
-The cross-domain research score can move the original Entry score by at most:
+## Project structure
 
 ```text
-±8 points
+backend/                 FastAPI API + fast/full caches
+frontend/                React/Vite dashboard
+src/
+  agents/v3/             retained specialist research layer
+  agents/v4/             horizon autonomy, critic, user writer
+  core/                   AgentState + V4 orchestrator
+  engines/v4/            signal registry + horizon fallback engine
+  tools/                  daily + intraday calculations
+  tools/research/         derivatives/macro/news/ETF/sentiment/network
+data/models/              existing saved LightGBM artifacts
+tests/                    API/core/V3 compatibility/V4 tests
 ```
 
-This prevents one noisy headline, failed API, or hallucinated LLM interpretation from completely overriding the Rule/ML engine.
+## Local verification
+
+Backend:
+
+```bash
+python -m pytest -q
+```
+
+Expected for this V4 package:
 
 ```text
-Core Entry Score
-      +
-Bounded Research Adjustment
-      ↓
-Adjusted Entry Score
+20 passed
 ```
 
-If core signals and research strongly disagree, the Confidence Gate automatically routes the case to deeper review.
+Frontend:
 
----
+```bash
+cd frontend
+npm install
+npm run build
+```
 
-## Rule + ML Core
+Then run the backend and frontend with the existing helper scripts or your normal commands.
 
-The original V2 engine is preserved as the deterministic base.
+## Deployment
 
-### Entry Engine
-
-Combines:
-
-- technical condition
-- LightGBM 30D probability
-- market regime
-- historical similarity
-
-### Exit Engine
-
-Separately evaluates long-term overheating and cycle-top risk.
-
-### LightGBM
-
-Training is separated from runtime.
+The existing deployment topology is preserved:
 
 ```text
-Historical BTC Data
-        ↓
-Feature Engineering
-        ↓
-Walk-Forward Validation
-        ↓
-Final Model
-        ↓
-btc_lgbm.joblib
+GitHub Pages (React)
+        │
+        ▼
+Render (FastAPI / Docker)
+        │
+        ├─ Upbit
+        ├─ derivatives providers
+        ├─ macro/news/flow/network sources
+        └─ OpenAI API (server-side key only)
 ```
 
-The web service loads the saved model instead of retraining on every request.
+Keep `OPENAI_API_KEY` only in Render. Do not commit it.
 
----
+If your existing repository already contains `data/models/btc_lgbm.joblib` and `btc_lgbm_metadata.json`, **keep those files** when overlaying the V4 update. The provided source package does not recreate a model that was not present in the supplied V3 archive.
 
-## Confidence Gate & Critic Loop
-
-The system uses conditional routing instead of asking an LLM to decide everything.
-
-```text
-Low conflict
-→ Fast Path
-
-Signal conflict / weak confidence / research disagreement
-→ Deep Analysis
-→ Decision Agent
-→ Critic Agent
-→ Revision
-```
-
-The Critic explicitly checks:
-
-- Entry vs Exit conflict
-- weak ML validation being over-interpreted
-- regime vs action conflict
-- missing top-risk signals
-- disagreement between core and autonomous research
-- missing invalidation conditions
-
----
-
-## Web Service Architecture
-
-```text
-GitHub Pages
-React / Vite
-     │
-     │ HTTPS JSON
-     ▼
-Render
-FastAPI / Docker
-     │
-     ├── Upbit market data
-     ├── Binance derivatives data
-     ├── Macro data provider
-     ├── News search / retrieval
-     ├── Historical RAG
-     ├── LightGBM
-     └── Optional LLM agents
-```
-
-The browser never receives private API keys. LLM and macro API credentials are server-side environment variables only.
-
----
-
-## Failure-Tolerant Design
-
-External research is intentionally non-critical.
-
-- Binance unavailable → derivatives specialist returns `UNAVAILABLE`
-- Macro source unavailable → macro evidence is marked missing
-- News search unavailable → core decision engine still runs
-- LLM unavailable → deterministic Planner and specialist fallbacks run
-- ML model unavailable → ML returns a neutral fallback instead of crashing the service
-
-The deterministic BTC engine remains usable even when the autonomous research layer is partially degraded.
-
----
-
-## Current Scope and Limitations
-
-V3 is still a **decision-support research system**, not an automated trading bot.
-
-Current limitations include:
-
-- no exchange order execution
-- no liquidation heatmap provider yet
-- no proprietary exchange-flow / whale-flow on-chain provider
-- headline-level public news retrieval rather than full paid news feeds
-- LightGBM performance must be interpreted through walk-forward validation
-- historical analogs are descriptive, not causal forecasts
-
----
-
-## Next Research Directions
-
-Planned extensions:
-
-```text
-On-chain / DeFi Specialist
-├── exchange inflow / outflow
-├── stablecoin liquidity
-├── MVRV / SOPR
-└── DeFi borrowing utilization
-
-Liquidation Specialist
-├── liquidation clusters
-├── leverage concentration
-└── squeeze-risk estimation
-
-Agent Memory
-├── previous decisions
-├── what invalidated them
-└── post-decision evaluation
-
-Automated Evaluation
-├── decision log
-├── future-return outcome
-├── calibration
-└── agent-level attribution
-```
-
-The long-term objective is not to maximize the number of agents. It is to build a system where each agent owns a clearly defined source of evidence, and the final decision remains traceable and testable.
-
----
-
-## Project Summary
-
-**BTC Agent V3.1** evolved from a fixed Rule + LightGBM + conditional-LLM pipeline into an autonomous research architecture.
-
-The main engineering contribution is the separation of:
-
-```text
-Data / Tools
-→ Retrieval
-→ Skills
-→ Specialist Agents
-→ Planner
-→ Research Synthesis
-→ Bounded Decision Engine
-→ Confidence Gate
-→ Critic
-→ Final Position Decision
-```
-
-The system is designed so that AI adds research and reasoning capability without replacing deterministic validation, evidence traceability, or risk controls.
-
-
-## Cost-aware public deployment
-
-V3.1 adds backend-enforced guardrails for a public portfolio deployment. The browser never receives the OpenAI API key. The backend limits public request frequency, per-client daily LLM analyses, global daily LLM analyses, and the maximum LLM calls/tokens within a single analysis.
-
-When an LLM quota is exhausted, the request is **not failed**: Planner/specialist/reasoning stages fall back to deterministic Rule/ML logic and the UI labels the result as `rule/ml fallback`. Repeated HTTP abuse beyond the public request limit is rejected with HTTP 429. Cached live analyses do not create new LLM cost.
-
-Default policy:
-
-```text
-6 analysis requests / IP / hour
-10 analysis requests / IP / day
-3 LLM-enabled analyses / IP / day
-30 LLM-enabled analyses / service / day
-8 LLM calls / analysis
-30,000 observed tokens / analysis before further calls are disabled
-```
-
-The in-app counters are intentionally **process-local memory counters**, so a backend restart resets them. They are an application-level abuse guard, not a substitute for provider-side billing controls/alerts. Raw client IP addresses are not retained by the guard; only a short SHA-256-derived identifier is kept in memory.
+See `V4_ROLLOUT.md` for the exact upgrade steps.

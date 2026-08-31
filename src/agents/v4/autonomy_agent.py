@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+from copy import deepcopy
+
+from src.agents.llm_client import call_json_agent, llm_available
+from src.engines.v4.horizon_engine import HORIZONS
+
+ALLOWED_STANCES = {"POSITIVE", "NEUTRAL", "CAUTION", "NEGATIVE"}
+
+
+def _validate(result: dict, fallback: dict, valid_ids: set[str]) -> dict:
+    out = deepcopy(fallback)
+    horizons = result.get("horizons", {}) if isinstance(result, dict) else {}
+    for h in HORIZONS:
+        candidate = horizons.get(h, {}) if isinstance(horizons, dict) else {}
+        if not isinstance(candidate, dict): continue
+        stance = str(candidate.get("stance", out[h]["stance"])).upper()
+        if stance not in ALLOWED_STANCES: stance = out[h]["stance"]
+        ids = [str(x) for x in candidate.get("key_signal_ids", []) if str(x) in valid_ids][:5]
+        if not ids: ids = out[h]["key_signal_ids"]
+        try: confidence = max(0.2, min(.92, float(candidate.get("confidence", out[h]["confidence"]))))
+        except (TypeError, ValueError): confidence = out[h]["confidence"]
+        out[h].update({
+            "stance": stance,
+            "confidence": confidence,
+            "headline": str(candidate.get("headline", out[h]["headline"]))[:180],
+            "summary": str(candidate.get("summary", out[h]["summary"]))[:420],
+            "key_signal_ids": ids,
+            "good": [str(x)[:180] for x in candidate.get("good", out[h].get("good", []))][:2],
+            "risks": [str(x)[:180] for x in candidate.get("risks", out[h].get("risks", []))][:2],
+            "source": "llm",
+        })
+    global_view = result.get("global_view", {}) if isinstance(result, dict) else {}
+    return {
+        "horizons": out,
+        "global_view": {
+            "what_changed": str(global_view.get("what_changed", ""))[:280],
+            "most_important": str(global_view.get("most_important", ""))[:280],
+            "conflict": str(global_view.get("conflict", ""))[:280],
+        },
+        "source": "llm",
+    }
+
+
+def analyze_horizons(signals: list[dict], events: list[dict], fallbacks: dict, data_health: dict, research: dict | None = None) -> dict:
+    base = {"horizons": fallbacks, "global_view": {"what_changed": "", "most_important": "", "conflict": ""}, "source": "fallback"}
+    if not llm_available(): return base
+    instruction = """
+너는 BTC V4의 Senior Market Analyst다. 숫자 계산기가 아니라 '현재 무엇이 중요한지' 고르는 분석가다.
+입력의 signal 값과 event만 사실로 사용할 수 있다. 숫자를 만들거나 수정하지 마라.
+NOW/TODAY/1W/1M/1Y는 서로 다른 결론이어도 된다. 같은 RSI 하나를 모든 시간대에 기계적으로 적용하지 마라.
+특히 NOW와 TODAY에서는 급락→반등, 거래량, 체결/호가, 레버리지 변화를 장기 이동평균보다 우선 검토할 수 있다.
+1M/1Y에서는 일중 잡음보다 장기 추세, 사이클, 거시, 자금 흐름을 더 중시하라.
+ML은 검증 성능이 약하면 보조 증거로만 취급하라. 누락 데이터는 추측하지 마라.
+전문용어를 사용자 문장에 남발하지 말고, 필요하면 쉬운 한국어로 풀어라.
+각 horizon 결론은 반드시 제공된 signal ID를 1~5개 인용해야 한다.
+
+JSON 형식:
+{
+  "global_view": {"what_changed":"지금 시장에서 가장 눈에 띄는 변화", "most_important":"가장 중요한 해석", "conflict":"충돌하는 신호가 있으면 짧게"},
+  "horizons": {
+    "NOW": {"stance":"POSITIVE|NEUTRAL|CAUTION|NEGATIVE", "confidence":0.0, "headline":"짧은 말", "summary":"최대 2문장", "key_signal_ids":["S_..."], "good":["최대2"], "risks":["최대2"]},
+    "TODAY": {}, "1W": {}, "1M": {}, "1Y": {}
+  }
+}
+"""
+    payload = {"signals": signals, "events": events, "data_health": data_health, "cross_domain_research": research or {}}
+    try:
+        result = call_json_agent(instruction, payload)
+        return _validate(result, fallbacks, {s["id"] for s in signals})
+    except Exception:
+        return base

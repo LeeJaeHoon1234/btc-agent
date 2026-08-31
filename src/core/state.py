@@ -27,13 +27,24 @@ class AgentState:
     final_decision: Decision | None = None
     explanation: dict[str, Any] = field(default_factory=dict)
 
-    # V3 autonomous research layer
+    # V3 research layer kept for backward compatibility / advanced inspection.
     question: str = ""
     plan: dict[str, Any] = field(default_factory=dict)
     experts: dict[str, Any] = field(default_factory=dict)
     research: dict[str, Any] = field(default_factory=dict)
     research_adjustment: dict[str, Any] = field(default_factory=dict)
     evidence: list[dict[str, Any]] = field(default_factory=list)
+
+    # V4 multi-speed market intelligence.
+    live: dict[str, Any] = field(default_factory=dict)
+    events: list[dict[str, Any]] = field(default_factory=list)
+    external: dict[str, Any] = field(default_factory=dict)
+    data_health: dict[str, Any] = field(default_factory=dict)
+    signals: list[dict[str, Any]] = field(default_factory=list)
+    horizons: dict[str, Any] = field(default_factory=dict)
+    autonomy: dict[str, Any] = field(default_factory=dict)
+    v4_critic: dict[str, Any] = field(default_factory=dict)
+    user_view: dict[str, Any] = field(default_factory=dict)
 
     iteration: int = 0
     logs: list[str] = field(default_factory=list)
@@ -42,9 +53,11 @@ class AgentState:
         self.logs.append(message)
 
     def compact_context(self) -> dict[str, Any]:
-        """LLM에 DataFrame 전체 대신 필요한 상태만 전달한다."""
+        """Pass compact facts to LLMs instead of whole DataFrames."""
         return {
             "latest": self.latest,
+            "live": self.live,
+            "events": self.events,
             "technical": self.technical,
             "ml": self.ml,
             "regime": self.regime,
@@ -56,6 +69,8 @@ class AgentState:
             "question": self.question,
             "plan": self.plan,
             "experts": self.experts,
+            "external": self.external,
+            "data_health": self.data_health,
             "research": self.research,
             "research_adjustment": self.research_adjustment,
             "gate": self.gate.to_dict() if self.gate else None,

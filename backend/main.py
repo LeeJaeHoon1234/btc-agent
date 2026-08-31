@@ -10,8 +10,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.serializers import serialize_state
-from backend.service import analysis_service
+from backend.serializers import _clean, serialize_state
+from backend.service import analysis_service, live_snapshot_service
 from config.settings import HISTORY_YEARS, MARKET, MODEL_PATH
 from src.agents.llm_client import llm_available
 from src.agents.v3.planner_agent import DEFAULT_QUESTION
@@ -19,7 +19,7 @@ from src.core.v3.skill_registry import skill_registry
 from src.core.v3.usage_guard import usage_guard
 
 logger = logging.getLogger(__name__)
-VERSION = "3.1.0"
+VERSION = "4.0.0"
 
 
 class AnalysisRequest(BaseModel):
@@ -37,18 +37,15 @@ class HealthResponse(BaseModel):
     default_market: str
     skill_count: int
     cost_guard_enabled: bool
+    live_layer: bool
 
 
 def _cors_origins() -> list[str]:
-    raw = os.getenv(
-        "CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    )
+    raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
     return [item.strip().rstrip("/") for item in raw.split(",") if item.strip()]
 
 
 def _client_key(request: Request) -> str:
-    # Render forwards the original client address in X-Forwarded-For. Only a hash is retained.
     forwarded = request.headers.get("x-forwarded-for", "")
     raw_client = forwarded.split(",", 1)[0].strip() if forwarded else ""
     if not raw_client and request.client:
@@ -57,43 +54,21 @@ def _client_key(request: Request) -> str:
 
 
 app = FastAPI(
-    title="BTC Agent V3.1 API",
-    description="Autonomous BTC research agent with skill routing, retrieval, Rule/ML, conditional LLM reasoning, and public-service cost guardrails.",
+    title="BTC Agent V4 API",
+    description="Multi-speed BTC decision-support system: live microstructure, multi-horizon analysis, autonomous evidence prioritization, critic, and plain-language UI.",
     version=VERSION,
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins(),
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Accept"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=_cors_origins(), allow_credentials=False, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Accept"])
 
 
 @app.get("/", include_in_schema=False)
 def root() -> dict:
-    return {
-        "service": "BTC Agent V3.1 API",
-        "version": VERSION,
-        "docs": "/docs",
-        "health": "/health",
-        "skills": "/api/v1/skills",
-        "usage": "/api/v1/usage",
-    }
+    return {"service": "BTC Agent V4 API", "version": VERSION, "docs": "/docs", "health": "/health", "live": "/api/v1/live", "usage": "/api/v1/usage"}
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(
-        status="ok",
-        version=VERSION,
-        model_available=MODEL_PATH.exists(),
-        llm_available=llm_available(),
-        default_market=MARKET,
-        skill_count=len(skill_registry.names()),
-        cost_guard_enabled=usage_guard.enabled,
-    )
+    return HealthResponse(status="ok", version=VERSION, model_available=MODEL_PATH.exists(), llm_available=llm_available(), default_market=MARKET, skill_count=len(skill_registry.names()), cost_guard_enabled=usage_guard.enabled, live_layer=True)
 
 
 @app.get("/api/v1/skills")
@@ -106,46 +81,28 @@ def usage(request: Request) -> dict:
     return usage_guard.status(_client_key(request))
 
 
+@app.get("/api/v1/live")
+def live(market: str = MARKET, source: Literal["live", "demo"] = "live") -> dict:
+    try:
+        snapshot, cached = live_snapshot_service.get(market=market, source=source)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail="실시간 시장 데이터 제공처에 연결하지 못했습니다.") from exc
+    return {"meta": {"generated_at": datetime.now(timezone.utc).isoformat(), "version": VERSION, "market": market, "source": source, "cached": cached}, "live": _clean(snapshot)}
+
+
 @app.post("/api/v1/analyze")
 def analyze(payload: AnalysisRequest, request: Request) -> dict:
     client_key = _client_key(request)
     rate = usage_guard.register_request(client_key)
     if not rate.allowed:
-        headers = {"Retry-After": str(rate.retry_after_seconds or 60)}
-        raise HTTPException(
-            status_code=429,
-            detail="Public analysis rate limit reached. Try again later.",
-            headers=headers,
-        )
-
+        raise HTTPException(status_code=429, detail="Public analysis rate limit reached. Try again later.", headers={"Retry-After": str(rate.retry_after_seconds or 60)})
     try:
-        state, cached, llm_usage = analysis_service.analyze(
-            market=payload.market,
-            history_years=payload.history_years,
-            source=payload.source,
-            question=payload.question,
-            client_key=client_key,
-        )
+        state, cached, llm_usage = analysis_service.analyze(market=payload.market, history_years=payload.history_years, source=payload.source, question=payload.question, client_key=client_key)
     except (requests.RequestException, ConnectionError, TimeoutError) as exc:
-        raise HTTPException(
-            status_code=502,
-            detail="시장 데이터 제공처에 연결하지 못했습니다. 잠시 뒤 다시 시도하거나 source='demo'로 확인하세요.",
-        ) from exc
+        raise HTTPException(status_code=502, detail="시장 데이터 제공처에 연결하지 못했습니다. 잠시 뒤 다시 시도하거나 source='demo'로 확인하세요.") from exc
     except (ValueError, IndexError, KeyError) as exc:
         raise HTTPException(status_code=422, detail=f"Analysis input/data error: {exc}") from exc
     except Exception as exc:
         logger.exception("Unexpected analysis failure")
         raise HTTPException(status_code=500, detail="Internal analysis error.") from exc
-
-    return {
-        "meta": {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "version": VERSION,
-            "market": payload.market,
-            "history_years": payload.history_years,
-            "source": payload.source,
-            "cached": cached,
-            "llm_usage": llm_usage,
-        },
-        "analysis": serialize_state(state),
-    }
+    return {"meta": {"generated_at": datetime.now(timezone.utc).isoformat(), "version": VERSION, "market": payload.market, "history_years": payload.history_years, "source": payload.source, "cached": cached, "llm_usage": llm_usage}, "analysis": serialize_state(state)}
