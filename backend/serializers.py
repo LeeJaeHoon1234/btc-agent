@@ -52,7 +52,6 @@ def serialize_state(state, series_points: int = 120) -> dict[str, Any]:
     payload = {
         "latest": state.latest,
         "technical": state.technical,
-        "ml": state.ml,
         "regime": state.regime,
         "similarity": state.similarity,
         "cycle": state.cycle,

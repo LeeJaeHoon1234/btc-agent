@@ -16,5 +16,6 @@ def test_full_v4_pipeline_runs_without_network():
     assert len(state.signals) >= 20
     assert state.user_view["headline"]
     assert {"hold", "add", "take_profit"}.issubset(state.user_view["actions"])
-    expected = {"daily_indicators", "technical_core", "ml_30d_support", "v4_live_and_external_data", "specialist_research", "event_detector", "horizon_analyst", "v4_critic", "plain_language_writer"}
+    assert set(state.entry["components"]) == {"technical", "regime", "similarity"}
+    expected = {"daily_indicators", "technical_core", "historical_similarity", "v4_live_and_external_data", "specialist_research", "event_detector", "horizon_analyst", "v4_critic", "plain_language_writer"}
     assert expected.issubset(set(state.logs))

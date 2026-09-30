@@ -1,5 +1,12 @@
 # BitScope V5 Manifest
 
+## V5.1 data-evidence release
+
+- Removed the trained price-prediction model, artifacts, runtime dependencies, and API fields.
+- Entry scoring now uses explicit technical, regime, and historical-outcome components.
+- Historical analog and news retrieval use transparent local calculations without a model runtime.
+- Removed the Streamlit application; React + GitHub Pages is the only frontend.
+
 ## Core
 
 - `src/core/v5/fact_registry.py` — raw facts vs deterministic-prior separation

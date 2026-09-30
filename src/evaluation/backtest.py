@@ -26,11 +26,10 @@ def run_score_backtest(
         regime = detect_regime(historical)
         cycle = analyze_cycle(historical)
 
-        # 백테스트 속도를 위해 ML/Similarity는 중립 처리
-        ml = {"available": False}
+        # 백테스트 속도를 위해 Similarity는 중립 처리
         similarity = {"available": False}
 
-        entry = score_entry(technical, ml, regime, similarity)
+        entry = score_entry(technical, regime, similarity)
 
         latest_dict = {
             "rsi14": latest["rsi14"],

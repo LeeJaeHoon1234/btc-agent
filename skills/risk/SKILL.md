@@ -4,7 +4,7 @@
 Attack the investment thesis and identify conditions under which the proposed action should be reduced, delayed, or invalidated.
 
 ## Inputs
-- Core technical/ML/cycle signals
+- Core technical, regime, historical-outcome, and cycle signals
 - Derivatives, macro, news, and historical-retrieval outputs
 - Final candidate decision
 

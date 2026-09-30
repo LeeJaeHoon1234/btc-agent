@@ -184,7 +184,6 @@ def test_etf_prior_balances_latest_session_with_five_session_trend():
     state = SimpleNamespace(
         latest={}, live={}, experts={"derivatives": {"raw": {}}, "news": {}},
         external={"flow": {"available": True, "latest_total_musd": -201.9, "five_session_total_musd": 924.5, "latest_date_label": "28 Aug 2026"}, "sentiment": {}, "onchain": {}},
-        ml={},
     )
     sig = next(x for x in build_signal_registry(state) if x["id"] == "S_ETF_FLOW")
     assert sig["direction"] == 0

@@ -23,7 +23,7 @@ from src.engines.entry_engine import score_entry
 from src.engines.exit_engine import score_exit
 from src.engines.position_engine import apply_position_plan
 from src.engines.research_engine import apply_research_adjustment
-from src.engines.v4.horizon_engine import build_horizon_fallbacks, build_signal_registry
+from src.engines.v4.horizon_engine import build_signal_registry
 from src.engines.v5.forecast_engine import build_forecast_distributions
 from src.engines.v5.regime_engine import detect_market_state
 from src.engines.v5.decision_engine import build_base_decision
@@ -36,7 +36,6 @@ from src.tools.event_detector import detect_market_events
 from src.tools.indicators import add_indicators
 from src.tools.live_market import fetch_live_market_snapshot, make_demo_live_snapshot
 from src.tools.market_data import get_daily_candles_history
-from src.tools.ml_predictor import predict_latest
 from src.tools.regime_tool import detect_regime
 from src.tools.research.derivatives_tool import fetch_btc_derivatives
 from src.tools.research.flow_tool import fetch_etf_flow
@@ -109,8 +108,7 @@ class BTCAgentOrchestrator:
             out[name] = {
                 "available": bool(result.get("available", True)),
                 # Preserve the specialist's own categorical judgment end-to-end.
-                # V5.0.2 correctly taught the council to prefer explicit stances, but the
-                # orchestrator accidentally stripped those fields before the council saw them.
+                # Preserve explicit specialist judgments before the council sees them.
                 "stance": result.get("stance"),
                 "raw_score": result.get("raw_score"),
                 "score": result.get("score"),
@@ -129,7 +127,7 @@ class BTCAgentOrchestrator:
         state.question = (question or DEFAULT_QUESTION).strip()
         injected = market_df is not None
 
-        # Slow layer: daily context + existing model/cycle assets.
+        # Slow layer: daily context + transparent market/cycle evidence.
         state.add_log("daily_market_data")
         if market_df is None:
             market_df = get_daily_candles_history(market=self.market, years=self.history_years)
@@ -162,8 +160,6 @@ class BTCAgentOrchestrator:
 
         state.add_log("technical_core")
         state.technical = run_technical_agent(df)
-        state.add_log("ml_30d_support")
-        state.ml = predict_latest(df)
         state.add_log("regime_core")
         state.regime = detect_regime(df)
         state.add_log("historical_similarity")
@@ -171,9 +167,9 @@ class BTCAgentOrchestrator:
         state.add_log("cycle_core")
         state.cycle = analyze_cycle(df)
         state.cycle["agent_view"] = run_cycle_agent(state.cycle)
-        state.entry = score_entry(state.technical, state.ml, state.regime, state.similarity)
+        state.entry = score_entry(state.technical, state.regime, state.similarity)
         state.exit = score_exit(state.latest, state.cycle)
-        state.gate = evaluate_confidence_gate(state.technical, state.ml, state.regime, state.similarity, state.entry, state.exit)
+        state.gate = evaluate_confidence_gate(state.technical, state.regime, state.similarity, state.entry, state.exit)
 
         # Fast/external layer: all fetches are best-effort and independently health-tracked.
         state.add_log("v4_live_and_external_data")
@@ -195,7 +191,6 @@ class BTCAgentOrchestrator:
             "etf_flow": self._health_item(bool(raw.get("flow", {}).get("available")), raw.get("flow", {}).get("fetched_at"), raw.get("flow", {}).get("provider"), "daily", raw.get("flow", {}).get("errors")),
             "sentiment": self._health_item(bool(raw.get("sentiment", {}).get("available")), raw.get("sentiment", {}).get("fetched_at"), raw.get("sentiment", {}).get("provider"), "daily", raw.get("sentiment", {}).get("errors")),
             "onchain_network": self._health_item(bool(raw.get("onchain", {}).get("available")), raw.get("onchain", {}).get("fetched_at"), raw.get("onchain", {}).get("provider"), "minutes/hours", raw.get("onchain", {}).get("errors")),
-            "ml_30d": self._health_item(bool(state.ml.get("available")), state.latest.get("date"), "saved LightGBM", "daily", []),
         }
 
         # Keep the existing specialist research, but routing itself is deterministic to save an LLM call.
@@ -290,7 +285,7 @@ class BTCAgentOrchestrator:
                 signals=state.signals,
                 regime=str(state.regime.get("regime") or "unknown"),
                 source=source, forecasts=state.forecasts, market_state=state.market_state,
-                portfolio=state.portfolio, model_version="5.0.2",
+                portfolio=state.portfolio, model_version="5.1.0-data-evidence",
             )
             state.memory = prediction_journal.memory_context(limit=8)
             state.track_record = prediction_journal.performance_summary()

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 
 FEATURES = [
     "rsi14", "ma20_gap_pct", "ma20_slope_5d", "ma200_gap_pct",
@@ -25,9 +24,11 @@ def retrieve_historical_cases(df: pd.DataFrame, top_k: int = 5, exclude_recent_d
     if len(candidates) < top_k:
         return {"available": False, "cases": [], "message": "Not enough non-recent historical cases."}
 
-    scaler = StandardScaler()
-    x = scaler.fit_transform(candidates[FEATURES])
-    q = scaler.transform(pd.DataFrame([current[FEATURES].to_dict()]))[0]
+    matrix = candidates[FEATURES].astype(float)
+    means = matrix.mean()
+    stds = matrix.std(ddof=0).replace(0, 1.0)
+    x = ((matrix - means) / stds).to_numpy(dtype=float)
+    q = ((current[FEATURES].astype(float) - means) / stds).to_numpy(dtype=float)
     distances = np.sqrt(((x - q) ** 2).mean(axis=1))
     candidates["distance"] = distances
     top = candidates.nsmallest(top_k, "distance")
@@ -52,5 +53,5 @@ def retrieve_historical_cases(df: pd.DataFrame, top_k: int = 5, exclude_recent_d
         "median_forward_7d_pct": float(np.median(f7)),
         "median_forward_30d_pct": float(np.median(f30)),
         "dispersion_30d_pct": float(np.std(f30)),
-        "method": "standardized nearest-neighbor historical retrieval",
+        "method": "standardized historical analog retrieval",
     }

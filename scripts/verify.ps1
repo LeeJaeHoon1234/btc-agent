@@ -3,9 +3,13 @@ $env:USE_LLM = "false"
 
 python -m compileall -q .
 pytest -q
-node --check frontend/src/App.js
-node --check frontend/src/api.js
-node --check frontend/src/main.js
-node --check frontend/vite.config.js
+Push-Location frontend
+try {
+    npm.cmd install --no-audit --no-fund
+    npm.cmd run build
+}
+finally {
+    Pop-Location
+}
 
-Write-Host "Backend tests and frontend syntax checks passed." -ForegroundColor Green
+Write-Host "Backend tests and frontend production build passed." -ForegroundColor Green

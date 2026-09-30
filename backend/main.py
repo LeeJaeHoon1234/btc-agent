@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from backend.serializers import _clean, serialize_state
 from backend.service import analysis_service, live_snapshot_service
-from config.settings import HISTORY_YEARS, MARKET, MODEL_PATH
+from config.settings import HISTORY_YEARS, MARKET
 from src.agents.llm_client import llm_available
 from src.agents.v3.planner_agent import DEFAULT_QUESTION
 from src.core.v3.skill_registry import skill_registry
@@ -20,7 +20,7 @@ from src.core.v3.usage_guard import usage_guard
 from src.memory.prediction_journal import prediction_journal
 
 logger = logging.getLogger(__name__)
-VERSION = "5.0.2"
+VERSION = "5.1.0"
 
 
 class AnalysisRequest(BaseModel):
@@ -35,7 +35,6 @@ class AnalysisRequest(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
-    model_available: bool
     llm_available: bool
     default_market: str
     skill_count: int
@@ -72,7 +71,7 @@ def root() -> dict:
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(status="ok", version=VERSION, model_available=MODEL_PATH.exists(), llm_available=llm_available(), default_market=MARKET, skill_count=len(skill_registry.names()), cost_guard_enabled=usage_guard.enabled, live_layer=True, reflection_memory=True)
+    return HealthResponse(status="ok", version=VERSION, llm_available=llm_available(), default_market=MARKET, skill_count=len(skill_registry.names()), cost_guard_enabled=usage_guard.enabled, live_layer=True, reflection_memory=True)
 
 
 @app.get("/api/v1/skills")

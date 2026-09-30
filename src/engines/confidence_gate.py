@@ -5,7 +5,6 @@ from config.thresholds import (
     EXIT_STRONG,
     EXIT_WARNING,
     GATE_FAST_CONFIDENCE,
-    GATE_MIN_MODEL_AUC,
 )
 from src.core.schemas import GateResult
 
@@ -16,7 +15,6 @@ def _near_threshold(value: float, threshold: float, margin: float) -> bool:
 
 def evaluate_confidence_gate(
     technical: dict,
-    ml: dict,
     regime: dict,
     similarity: dict,
     entry: dict,
@@ -30,24 +28,19 @@ def evaluate_confidence_gate(
     entry_score = float(entry.get("score", 50))
     exit_score = float(exit_signal.get("score", 0))
 
-    # 1) Technical vs ML conflict
-    if ml.get("available"):
-        ml_prob = float(ml.get("up_probability", 50))
+    # 1) Conflict between current technical state and realized historical analogs.
+    if similarity.get("available"):
+        historical_up_rate = float(similarity.get("up_rate_30d", 50))
         technical_bull = technical_score >= 60
-        ml_bull = ml_prob >= 55
+        historical_bull = historical_up_rate >= 55
 
-        if technical_bull != ml_bull:
+        if technical_bull != historical_bull:
             confidence -= 0.16
-            reasons.append("기술적 판단과 ML 방향이 충돌")
-            force_deep_reasons.append("기술적 판단과 ML 방향 충돌")
-
-        mean_auc = ml.get("metadata", {}).get("walk_forward_mean_auc")
-        if mean_auc is not None and float(mean_auc) < GATE_MIN_MODEL_AUC:
-            confidence -= 0.12
-            reasons.append("Walk-Forward 평균 AUC가 낮아 ML 신뢰를 축소")
+            reasons.append("현재 기술적 흐름과 과거 유사구간 결과가 충돌")
+            force_deep_reasons.append("현재 흐름과 과거 유사구간 결과 충돌")
     else:
         confidence -= 0.10
-        reasons.append("저장된 ML 모델이 없어 ML 신호를 사용하지 못함")
+        reasons.append("비교 가능한 과거 유사구간이 부족함")
 
     # 2) Regime uncertainty
     if regime.get("regime") in {"bull_transition", "bear_transition", "sideways"}:

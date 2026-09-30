@@ -131,13 +131,6 @@ def build_signal_registry(state) -> list[dict]:
         elif key in {"volume_zscore_30d", "obv_slope_10d"}: direction = 1 if val > 0.3 else -1 if val < -0.3 else 0; strength = min(1, abs(val) / 3)
         signals.append(_signal(sid, "technical", hs, direction, strength, f"{label}: {val:.3f}", f"{label}은 {val:.2f}입니다.", val, "daily"))
 
-    ml = state.ml or {}
-    if ml.get("available") and _f(ml.get("up_probability")) is not None:
-        p = _f(ml.get("up_probability"))
-        auc = _f((ml.get("metadata") or {}).get("walk_forward_mean_auc"))
-        reliability = 0.25 if auc is not None and auc < .57 else .45
-        signals.append(_signal("S_ML_30D", "model", ["1M"], 1 if p >= 57 else -1 if p <= 43 else 0, reliability, f"30일 ML 상승확률 {p:.1f}% / walk-forward AUC {auc if auc is not None else 'unknown'}", "30일 AI 예측은 참고 신호로만 사용합니다.", p, "daily"))
-
     if deriv.get("available"):
         for key, sid, label, hs in [
             ("funding_rate", "S_FUNDING", "선물 펀딩비", ["NOW", "TODAY", "1W"]),

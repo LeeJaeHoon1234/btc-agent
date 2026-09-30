@@ -15,7 +15,7 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """Daily feature store.
 
     V4 deliberately computes a broad technical set here, while the decision layer chooses
-    which indicators are relevant for each horizon. Existing ML feature columns are unchanged.
+    which indicators are relevant for each horizon.
     """
     df = df.copy().sort_values("date").reset_index(drop=True)
     close = df["close"].astype(float); high = df["high"].astype(float); low = df["low"].astype(float); volume = df["volume"].astype(float)
@@ -78,7 +78,7 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     for window in [20, 50, 200, 350]:
         df[f"ma{window}_gap_pct"] = (close / df[f"ma{window}"] - 1) * 100
-    # Backward-compatible names expected by V2/V3 and saved ML feature schema.
+    # Backward-compatible names expected by the legacy V2/V3 analysis layers.
     df["ma20_gap_pct"] = df["ma20_gap_pct"]
     df["ma200_gap_pct"] = df["ma200_gap_pct"]
     df["ma350_gap_pct"] = df["ma350_gap_pct"]

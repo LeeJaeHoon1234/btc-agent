@@ -12,7 +12,6 @@ class AgentState:
     latest: dict[str, Any] = field(default_factory=dict)
 
     technical: dict[str, Any] = field(default_factory=dict)
-    ml: dict[str, Any] = field(default_factory=dict)
     regime: dict[str, Any] = field(default_factory=dict)
     similarity: dict[str, Any] = field(default_factory=dict)
     cycle: dict[str, Any] = field(default_factory=dict)
@@ -74,7 +73,6 @@ class AgentState:
             "live": self.live,
             "events": self.events,
             "technical": self.technical,
-            "ml": self.ml,
             "regime": self.regime,
             "similarity": self.similarity,
             "cycle": self.cycle,

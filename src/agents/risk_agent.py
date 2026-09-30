@@ -4,7 +4,6 @@ def run_risk_agent(state) -> dict:
 
     latest = state.latest
     regime = state.regime
-    ml = state.ml
     exit_signal = state.exit
     similarity = state.similarity
     research = state.research
@@ -18,13 +17,8 @@ def run_risk_agent(state) -> dict:
         risks.append("Regime 전환 구간이라 가짜 돌파/이탈 가능성")
         severity_score += 15
 
-    if ml.get("available"):
-        mean_auc = ml.get("metadata", {}).get("walk_forward_mean_auc")
-        if mean_auc is not None and float(mean_auc) < 0.52:
-            risks.append("ML Walk-Forward 성능이 약해 확률을 강하게 믿기 어려움")
-            severity_score += 15
-    else:
-        risks.append("ML 신호가 없는 상태")
+    if not similarity.get("available"):
+        risks.append("비교 가능한 과거 유사구간이 부족함")
         severity_score += 8
 
     if float(exit_signal.get("score", 0)) >= 75:

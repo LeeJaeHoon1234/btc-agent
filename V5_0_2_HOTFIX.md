@@ -29,4 +29,4 @@ The live UI exposed two integration bugs that unit-level logic alone did not cat
 - Frontend source parse: `App.jsx`, `i18n.js`, `api.js`, `main.js` pass TypeScript JSX/JS parsing.
 - Live source cross-check: Farside's latest completed 2026-08-28 session is `-201.9M USD`; completed 5-session total through that date is `+924.5M USD`.
 
-This release does not retrain or change the LightGBM model.
+This historical release did not change the quantitative forecast layer. The later V5.1 release removed the trained price-prediction model entirely.

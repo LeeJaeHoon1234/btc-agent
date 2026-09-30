@@ -6,6 +6,8 @@ V5 changes BitScope from a signal dashboard into an auditable Bitcoin decision-i
 
 > **Raw facts stay raw. Numerical models own numbers. LLMs interpret and challenge. A deterministic Risk Governor owns the safety boundary.**
 
+V5.1 removes the trained price-prediction runtime. Numerical forecasts are derived from observable market state and historical outcome distributions so the evidence path remains inspectable.
+
 ## Main pipeline
 
 ```text
